@@ -9,6 +9,9 @@
 | `ready-for-agent` | `ready-for-agent` | 已完全明确，可交给 AFK agent |
 | `ready-for-human` | `ready-for-human` | 需要人工实现 |
 | `wontfix` | `wontfix` | 不予处理 |
+| （五角色之外的终态） | `done` | 实施类 ticket 已完成并通过验收 |
+
+实施类 ticket 验收通过后置 `done`；triage 五角色只描述"待处理"阶段，不含完成态。
 
 技能提到某个角色时（例如「apply the AFK-ready triage label」），使用表中对应行的标签字符串。
 
