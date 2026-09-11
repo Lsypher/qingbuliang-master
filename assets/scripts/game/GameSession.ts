@@ -16,8 +16,6 @@ export class GameSession extends Component {
   /** 开一局新单局（进入单局页或重开时调用） */
   startRound(): void {
     this.session = createSession();
-    // 先广播开局，再推首帧状态：背景这类表现要在玩家看到第一帧前就换好
-    bus.emit(BusEvent.RoundStarted);
     this.publish([]);
   }
 

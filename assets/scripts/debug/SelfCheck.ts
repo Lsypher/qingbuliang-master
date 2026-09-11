@@ -1,14 +1,12 @@
 import { _decorator, Button, Component, Label, Node, Sprite, UITransform, director } from 'cc';
 import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
+import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { readBestScore } from '../game/bestScore';
 
 const { ccclass } = _decorator;
 
-/** 自检需要伸进去的两只手：手动推时间（省掉真等 60 秒），以及反复开局（验证背景每局重抽） */
-type SessionDriver = {
-  update: (deltaTime: number) => void;
-  startRound(): void;
-};
+/** 自检需要伸进去的手：手动推一把时间，让 60 秒的规则不必真等 60 秒 */
+type SessionDriver = { update: (deltaTime: number) => void };
 
 /**
  * 开发期自检：预览启动后脚本化地打一局，把每条验收结论打到控制台（前缀 [SELFTEST]）。
@@ -60,6 +58,13 @@ export class SelfCheck extends Component {
     const session = gamePage.getComponent('GameSession') as unknown as SessionDriver | null;
     this.check('单局页挂着 GameSession（时间由它推进）', session !== null);
 
+    // 切页与开局都由组合根负责：自检要反复进单局（验证背景每局重抽）就得走它
+    const gameRoot = canvas.getComponent('GameRoot') as unknown as {
+      showStart(): void;
+      showGame(): void;
+    } | null;
+    this.check('Canvas 挂着 GameRoot（切页与开局的入口）', gameRoot !== null);
+
     // ⓪ 开始页的最高分与本地存储对得上——"刷新浏览器后最高分仍在"靠的就是这条
     const startPage = pages?.getChildByName('StartPage') ?? null;
     this.bestAtBoot = readBestScore();
@@ -103,7 +108,11 @@ export class SelfCheck extends Component {
     const roundBackground = backgroundState(canvas);
     this.check('单局中背景不压暗', roundBackground.dimmed === false);
     this.check('背景图已加载', roundBackground.frame !== null, roundBackground.name);
-    this.check('背景铺满 720x1280', roundBackground.width === 720 && roundBackground.height === 1280, describeBackground(roundBackground));
+    this.check(
+      '背景铺满 720x1280',
+      roundBackground.width === SCREEN_WIDTH && roundBackground.height === SCREEN_HEIGHT,
+      describeBackground(roundBackground),
+    );
     this.check('背景图源比例是 9:16（拉满不变形）', roundBackground.ratioKept, describeBackground(roundBackground));
 
     // ④ 故意反序点击，验证"集合匹配与放入顺序无关"；最后一下凑齐即出餐
@@ -212,23 +221,25 @@ export class SelfCheck extends Component {
     const freshOrder = splitOrder(orderLabel?.string ?? '');
     this.check('重开后是新的 1 汤底 + 3 小料订单', freshOrder.length === 4, freshOrder.join('|'));
 
-    // ⑩′ 背景每局重抽：连开 8 局，看抽到几张不同的
+    // ⑩′ 背景每局重抽：连进 8 次单局，看抽到几张不同的（背景是异步加载，每次让出一小段时间）
     const pickedBackgrounds = new Set<string>();
     for (let i = 0; i < 8; i++) {
-      session?.startRound();
+      gameRoot?.showGame();
+      await wait(60);
       pickedBackgrounds.add(backgroundState(canvas).name);
     }
     this.check('每局重新抽背景（8 局抽到多张）', pickedBackgrounds.size >= 2, Array.from(pickedBackgrounds).join(','));
 
-    // ⑪ 回开始页：刚打出的最高分立刻看得见
-    const gameRoot = canvas.getComponent('GameRoot') as { showStart?: () => void } | null;
-    gameRoot?.showStart?.();
+    // ⑪ 回开始页：刚打出的最高分立刻看得见，背景也要重新压暗
+    // （压暗曾经由 onLoad / 单局结束 / 开局三处拼出来，回开始页这一路漏了——现在压暗只有一个来源）
+    gameRoot?.showStart();
     await wait(80);
     this.check(
       '回到开始页显示最新最高分',
       numberIn(labelText(startPage, 'BestScore')) === readBestScore(),
       `${labelText(startPage, 'BestScore')} 存储=${readBestScore()}`,
     );
+    this.check('回到开始页背景重新压暗', backgroundState(canvas).dimmed === true, describeBackground(backgroundState(canvas)));
   }
 
   /** 自检自己点出来的战绩：只用来核对界面 */
@@ -438,7 +449,7 @@ function backgroundState(canvas: Node | null): {
     width: transform?.width ?? -1,
     height: transform?.height ?? -1,
     // 铺满 720x1280 时，只有图源同样是 9:16 才不会变形（差一点点肉眼看不出，留 1% 容差）
-    ratioKept: !!frame && frame.height > 0 && Math.abs(frame.width / frame.height - 720 / 1280) < 0.01,
+    ratioKept: !!frame && frame.height > 0 && Math.abs(frame.width / frame.height - SCREEN_WIDTH / SCREEN_HEIGHT) < 0.01,
     dimmed: findNode(canvas, 'BackgroundDim')?.active ?? false,
   };
 }

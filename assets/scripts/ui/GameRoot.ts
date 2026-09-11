@@ -1,5 +1,5 @@
 import { _decorator, Button, Component, Node } from 'cc';
-import type { RenderPayload } from '../game/bus';
+import type { RenderPayload, ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
@@ -45,7 +45,11 @@ export class GameRoot extends Component {
    */
   private assembleBackground(): void {
     const backgroundNode = this.node.getChildByName('Background');
-    if (backgroundNode && !backgroundNode.getComponent(BackgroundView)) {
+    if (!backgroundNode) {
+      console.warn('[GameRoot] 找不到 Background 节点，背景层没装配上');
+      return;
+    }
+    if (!backgroundNode.getComponent(BackgroundView)) {
       backgroundNode.addComponent(BackgroundView);
     }
   }
@@ -69,17 +73,17 @@ export class GameRoot extends Component {
   }
 
   showStart(): void {
-    this.switchTo(this.startPage);
+    this.switchTo(this.startPage, 'start');
   }
 
   /** 进入单局页并开一局新的：重开走的也是这里 */
   showGame(): void {
-    this.switchTo(this.gamePage);
+    this.switchTo(this.gamePage, 'game');
     this.gameSession?.startRound();
   }
 
   showResult(): void {
-    this.switchTo(this.resultPage);
+    this.switchTo(this.resultPage, 'result');
   }
 
   /** 把按钮的点击接到方法上；refs 未接好时静默跳过，避免空节点报错 */
@@ -89,10 +93,12 @@ export class GameRoot extends Component {
   }
 
   /** 三页互斥显示：靠 active 切换，不销毁重建，所以来回切不会留残留节点 */
-  private switchTo(target: Node | null): void {
+  private switchTo(target: Node | null, page: ScenePage): void {
     const pages = [this.startPage, this.gamePage, this.resultPage];
-    for (const page of pages) {
-      if (page) page.active = page === target;
+    for (const node of pages) {
+      if (node) node.active = node === target;
     }
+    // "当前是哪一页"只在这一处产生并广播；跟着页面走的表现（背景换图与压暗）据此响应
+    bus.emit(BusEvent.PageShown, page);
   }
 }
