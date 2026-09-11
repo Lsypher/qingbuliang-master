@@ -1,8 +1,20 @@
 {
   "host": "127.0.0.1",
   "port": 22470,
-  "toolProfile": "core",
+  "toolProfile": "full",
   "autostart": true,
   "enableConsoleLogging": true,
-  "executeJavascriptSafetyChecks": true
+  "executeJavascriptSafetyChecks": true,
+  "portMode": "fixed",
+  "clientConfigEntries": {},
+  "enabledTools": [],
+  "disabledTools": [],
+  "enabledToolCategories": [],
+  "disabledToolCategories": [],
+  "enableSessions": false,
+  "maxInteractionLogEntries": 50,
+  "lastClientTargetId": "claude_code",
+  "activeToolProfileName": "",
+  "savedToolProfiles": [],
+  "language": "auto"
 }
