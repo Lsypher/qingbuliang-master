@@ -2,22 +2,22 @@
   "ver": "1.0.27",
   "importer": "image",
   "imported": true,
-  "uuid": "7df0f053-26a3-48b1-a0bc-02af150b2e7f",
+  "uuid": "e8f43be2-44b1-477f-8a15-f494cbecfa7b",
   "files": [
-    ".json",
-    ".png"
+    ".jpg",
+    ".json"
   ],
   "subMetas": {
     "6c48a": {
       "importer": "texture",
-      "uuid": "7df0f053-26a3-48b1-a0bc-02af150b2e7f@6c48a",
-      "displayName": "椰林海岸黄昏",
+      "uuid": "e8f43be2-44b1-477f-8a15-f494cbecfa7b@6c48a",
+      "displayName": "qilou-street-night",
       "id": "6c48a",
       "name": "texture",
       "userData": {
         "wrapModeS": "clamp-to-edge",
         "wrapModeT": "clamp-to-edge",
-        "imageUuidOrDatabaseUri": "7df0f053-26a3-48b1-a0bc-02af150b2e7f",
+        "imageUuidOrDatabaseUri": "e8f43be2-44b1-477f-8a15-f494cbecfa7b",
         "isUuid": true,
         "visible": false,
         "minfilter": "linear",
@@ -34,8 +34,8 @@
     },
     "f9941": {
       "importer": "sprite-frame",
-      "uuid": "7df0f053-26a3-48b1-a0bc-02af150b2e7f@f9941",
-      "displayName": "椰林海岸黄昏",
+      "uuid": "e8f43be2-44b1-477f-8a15-f494cbecfa7b@f9941",
+      "displayName": "qilou-street-night",
       "id": "f9941",
       "name": "spriteFrame",
       "userData": {
@@ -45,10 +45,10 @@
         "offsetY": 0,
         "trimX": 0,
         "trimY": 0,
-        "width": 1600,
-        "height": 2848,
-        "rawWidth": 1600,
-        "rawHeight": 2848,
+        "width": 1080,
+        "height": 1920,
+        "rawWidth": 1080,
+        "rawHeight": 1920,
         "borderTop": 0,
         "borderBottom": 0,
         "borderLeft": 0,
@@ -60,17 +60,17 @@
         "meshType": 0,
         "vertices": {
           "rawPosition": [
-            -800,
-            -1424,
+            -540,
+            -960,
             0,
-            800,
-            -1424,
+            540,
+            -960,
             0,
-            -800,
-            1424,
+            -540,
+            960,
             0,
-            800,
-            1424,
+            540,
+            960,
             0
           ],
           "indexes": [
@@ -83,12 +83,12 @@
           ],
           "uv": [
             0,
-            2848,
-            1600,
-            2848,
+            1920,
+            1080,
+            1920,
             0,
             0,
-            1600,
+            1080,
             0
           ],
           "nuv": [
@@ -102,18 +102,18 @@
             1
           ],
           "minPos": [
-            -800,
-            -1424,
+            -540,
+            -960,
             0
           ],
           "maxPos": [
-            800,
-            1424,
+            540,
+            960,
             0
           ]
         },
         "isUuid": true,
-        "imageUuidOrDatabaseUri": "7df0f053-26a3-48b1-a0bc-02af150b2e7f@6c48a",
+        "imageUuidOrDatabaseUri": "e8f43be2-44b1-477f-8a15-f494cbecfa7b@6c48a",
         "atlasUuid": "",
         "trimType": "auto"
       },
@@ -129,6 +129,6 @@
     "type": "sprite-frame",
     "fixAlphaTransparencyArtifacts": false,
     "hasAlpha": false,
-    "redirect": "7df0f053-26a3-48b1-a0bc-02af150b2e7f@6c48a"
+    "redirect": "e8f43be2-44b1-477f-8a15-f494cbecfa7b@6c48a"
   }
 }

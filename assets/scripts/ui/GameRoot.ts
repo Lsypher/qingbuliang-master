@@ -2,6 +2,7 @@ import { _decorator, Button, Component, Node } from 'cc';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { GameSession } from '../game/GameSession';
+import { BackgroundView } from './BackgroundView';
 import { ResultView } from './ResultView';
 
 const { ccclass, property } = _decorator;
@@ -30,7 +31,23 @@ export class GameRoot extends Component {
     this.bindClick(this.startButton, this.showGame);
     this.bindClick(this.restartButton, this.showGame);
     bus.on(BusEvent.Render, this.onRender, this);
+    this.assembleBackground();
     this.showStart();
+  }
+
+  /**
+   * 装配背景层。
+   *
+   * 临时措施：BackgroundView 本该直接挂在场景的 Background 节点上，但编辑器当前拒绝保存场景改动
+   * （scene:save-scene 持续返回 false，soft-reload 也复位不了），只能由组合根在运行时补挂。
+   * 编辑器恢复正常后，把这里换回"在场景里挂组件"即可，行为完全一致——
+   * 带存在性判断，所以场景里已经挂了也不会重复挂。
+   */
+  private assembleBackground(): void {
+    const backgroundNode = this.node.getChildByName('Background');
+    if (backgroundNode && !backgroundNode.getComponent(BackgroundView)) {
+      backgroundNode.addComponent(BackgroundView);
+    }
   }
 
   protected onDestroy(): void {

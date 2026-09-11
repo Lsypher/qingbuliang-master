@@ -10,6 +10,8 @@ export const UI_COLOR = {
   /** 倒计时进度条：底槽（半透明）与剩余时间填充 */
   barTrack: new Color(255, 255, 255, 30),
   barFill: new Color(255, 206, 130, 255),
+  /** 背景压暗层：开始页与结算页盖在背景图上，让文字读起来不费劲 */
+  backgroundDim: new Color(0, 0, 0, 175),
 } as const;
 
 /** 建一个 UI 节点（自动挂 UITransform、设尺寸与层级） */

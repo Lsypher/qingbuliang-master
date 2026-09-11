@@ -1,11 +1,14 @@
-import { _decorator, Button, Component, Label, Node, UITransform, director } from 'cc';
+import { _decorator, Button, Component, Label, Node, Sprite, UITransform, director } from 'cc';
 import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
 import { readBestScore } from '../game/bestScore';
 
 const { ccclass } = _decorator;
 
-/** 自检唯一需要伸进去的手：手动推一把时间，让 60 秒的规则不必真等 60 秒 */
-type TimeDriver = { update: (deltaTime: number) => void };
+/** 自检需要伸进去的两只手：手动推时间（省掉真等 60 秒），以及反复开局（验证背景每局重抽） */
+type SessionDriver = {
+  update: (deltaTime: number) => void;
+  startRound(): void;
+};
 
 /**
  * 开发期自检：预览启动后脚本化地打一局，把每条验收结论打到控制台（前缀 [SELFTEST]）。
@@ -54,7 +57,7 @@ export class SelfCheck extends Component {
     this.check('场景结构完整（GamePage 与开始按钮都在）', gamePage !== null && startButton !== null);
     if (!gamePage) return;
 
-    const session = gamePage.getComponent('GameSession') as unknown as TimeDriver | null;
+    const session = gamePage.getComponent('GameSession') as unknown as SessionDriver | null;
     this.check('单局页挂着 GameSession（时间由它推进）', session !== null);
 
     // ⓪ 开始页的最高分与本地存储对得上——"刷新浏览器后最高分仍在"靠的就是这条
@@ -65,6 +68,9 @@ export class SelfCheck extends Component {
       numberIn(labelText(startPage, 'BestScore')) === this.bestAtBoot,
       `页面=${labelText(startPage, 'BestScore')} 存储=${this.bestAtBoot}`,
     );
+
+    // ⓪′ 背景层：开始页应当是压暗的
+    this.check('开始页把背景压暗', backgroundState(canvas).dimmed === true);
 
     // ① 点"开摊"：走真实按钮事件，顺带验证 GameRoot 的绑定
     emitClick(startButton);
@@ -92,6 +98,13 @@ export class SelfCheck extends Component {
 
     // ③′ 排版：Game View 截不到图，重叠与越界只能靠节点包围盒来兜
     this.checkHudLayout(canvas, gamePage);
+
+    // ③″ 背景：单局里不压暗；图要铺满 720x1280，且图源本身就是 9:16（拉满不变形）
+    const roundBackground = backgroundState(canvas);
+    this.check('单局中背景不压暗', roundBackground.dimmed === false);
+    this.check('背景图已加载', roundBackground.frame !== null, roundBackground.name);
+    this.check('背景铺满 720x1280', roundBackground.width === 720 && roundBackground.height === 1280, describeBackground(roundBackground));
+    this.check('背景图源比例是 9:16（拉满不变形）', roundBackground.ratioKept, describeBackground(roundBackground));
 
     // ④ 故意反序点击，验证"集合匹配与放入顺序无关"；最后一下凑齐即出餐
     const tray = findNode(gamePage, 'TrayArea');
@@ -176,6 +189,14 @@ export class SelfCheck extends Component {
     );
     this.check('结算页最高分与存储一致', resultBest === readBestScore(), `结算页=${resultBest} 存储=${readBestScore()}`);
 
+    // ⑨′ 背景：结算页压暗，且这一局自始至终是同一张
+    this.check('结算页把背景压暗', backgroundState(canvas).dimmed === true);
+    this.check(
+      '同一局内背景不切换',
+      backgroundState(canvas).name === roundBackground.name,
+      `${roundBackground.name} -> ${backgroundState(canvas).name}`,
+    );
+
     // ⑩ "再来一碗"：单局状态必须全部复位
     emitClick(findNode(resultPage, 'RestartButton'));
     await wait(80);
@@ -190,6 +211,14 @@ export class SelfCheck extends Component {
     this.check('重开后碗是空的', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
     const freshOrder = splitOrder(orderLabel?.string ?? '');
     this.check('重开后是新的 1 汤底 + 3 小料订单', freshOrder.length === 4, freshOrder.join('|'));
+
+    // ⑩′ 背景每局重抽：连开 8 局，看抽到几张不同的
+    const pickedBackgrounds = new Set<string>();
+    for (let i = 0; i < 8; i++) {
+      session?.startRound();
+      pickedBackgrounds.add(backgroundState(canvas).name);
+    }
+    this.check('每局重新抽背景（8 局抽到多张）', pickedBackgrounds.size >= 2, Array.from(pickedBackgrounds).join(','));
 
     // ⑪ 回开始页：刚打出的最高分立刻看得见
     const gameRoot = canvas.getComponent('GameRoot') as { showStart?: () => void } | null;
@@ -389,4 +418,31 @@ function overlaps(a: WorldBox, b: WorldBox): boolean {
 
 function describeBox(box: WorldBox | null): string {
   return box ? `${Math.round(box.left)},${Math.round(box.bottom)}~${Math.round(box.right)},${Math.round(box.top)}` : 'none';
+}
+
+/** 背景层当前的可见状态：自检用它核对表现，不参与玩法 */
+function backgroundState(canvas: Node | null): {
+  frame: Sprite['spriteFrame'];
+  name: string;
+  width: number;
+  height: number;
+  ratioKept: boolean;
+  dimmed: boolean;
+} {
+  const image = findNode(canvas, 'BackgroundImage');
+  const transform = image?.getComponent(UITransform);
+  const frame = image?.getComponent(Sprite)?.spriteFrame ?? null;
+  return {
+    frame,
+    name: frame?.name ?? 'none',
+    width: transform?.width ?? -1,
+    height: transform?.height ?? -1,
+    // 铺满 720x1280 时，只有图源同样是 9:16 才不会变形（差一点点肉眼看不出，留 1% 容差）
+    ratioKept: !!frame && frame.height > 0 && Math.abs(frame.width / frame.height - 720 / 1280) < 0.01,
+    dimmed: findNode(canvas, 'BackgroundDim')?.active ?? false,
+  };
+}
+
+function describeBackground(state: ReturnType<typeof backgroundState>): string {
+  return `${state.name} ${state.width}x${state.height} 压暗=${state.dimmed}`;
 }
