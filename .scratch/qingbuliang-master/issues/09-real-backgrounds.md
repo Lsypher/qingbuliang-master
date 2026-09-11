@@ -37,6 +37,10 @@
 
 前 3 张安静区明显弱于焦点区；黎锦纹样作为图案类背景绝对细节最高，是唯一需要留意的——但它落在那两条带里的部分会被订单卡面板（92% 不透明）与配料盘面板盖住，实际可用。**人眼那一眼仍需玩家自己确认**（Game View 内容区截不到图，这是本仓库已记录的验证限制）。
 
-**接线方式（重要）**：4 张图放在 `assets/resources/art/backgrounds/`（ASCII 名），由 `BackgroundView` 按文件名运行时加载——不依赖编辑器里手工接资源引用，换图只换文件。
+**接线方式（重要）**：4 张图放在 `assets/resources/art/backgrounds/`（ASCII 名），清单在 `config/backgrounds.ts`，由 `BackgroundView` 按文件名运行时加载——不依赖编辑器里手工接资源引用。替换同名文件即可换图；只有增删背景才需要改配置。
+
+**只留当前一张**：换背景时把上一张 `releaseAsset` 掉——4 张 1080×1920 全常驻约 30MB，而任意时刻只显示一张。
+
+**页面状态单一来源**：背景的换图与压暗只听组合根切页时广播的 `PageShown`。最初由 `onLoad` / 单局结束 / 开局三处各自拼出来，漏掉了"回开始页重新压暗"这一路（代码评审发现），现已收敛为一处并补了对应断言。
 
 **遗留问题（需人工处理）**：本切片期间编辑器**拒绝保存场景**（`scene:save-scene` 持续返回 `false`，`soft-reload` 复位后依旧；文件系统可写、无模态框、无只读属性）。因此 `BackgroundView` 暂时由组合根 `GameRoot.assembleBackground()` 在运行时补挂到 `Background` 节点上。编辑器恢复后（大概率重启 Cocos Creator 即可）：在场景里给 `Canvas/Background` 挂上 `BackgroundView`，然后删掉 `GameRoot.assembleBackground()` 这一步——带存在性判断，两边同时存在也不会重复挂。

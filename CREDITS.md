@@ -4,7 +4,7 @@
 
 ## 背景图（4 张）
 
-按 `docs/art/background-prompts.md` 的出图需求产出、由用户交付。原始文件为 1600×2848 PNG，已随提交 `e0ed041` 入库，需要时可随时取回；仓库里现存的是下面这套压缩后的上线档位。
+按 `docs/art/background-prompts.md` 的出图需求产出、由用户交付。原始文件为 1600×2848 PNG，已随提交 `e0ed041` 入库；需要取回原图时执行 `git checkout e0ed041 -- assets/art/backgrounds`。仓库里现存的是下面这套压缩后的上线档位。
 
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
