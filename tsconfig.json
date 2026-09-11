@@ -4,6 +4,10 @@
 
   /* Add your custom configuration here. */
   "compilerOptions": {
-    "strict": false
+    "strict": false,
+    /* 不检查引擎自带的 cc.d.ts 与 node_modules 里的类型声明，避免它们淹没真正的代码错误 */
+    "skipLibCheck": true,
+    /* 引擎默认 target 是 ES2015，lib 也停在 ES2015；放宽到 ES2017 才能用 Array.includes 这类运行时 API */
+    "lib": ["ES2017", "DOM", "DOM.Iterable"]
   }
 }
