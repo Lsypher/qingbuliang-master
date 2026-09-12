@@ -1,7 +1,9 @@
-import { _decorator, Button, Component, Label, Node, Sprite, UITransform, director } from 'cc';
+import { _decorator, Button, Component, Label, Node, Sprite, UITransform, Vec3, director } from 'cc';
 import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
+import { ALL_INGREDIENTS } from '../config/ingredients';
 import { readBestScore } from '../game/bestScore';
+import { BusEvent, bus } from '../game/bus';
 
 const { ccclass } = _decorator;
 
@@ -144,6 +146,33 @@ export class SelfCheck extends Component {
     this.countMisdrop();
     await wait(60);
     this.check('点订单外的配料不会进碗', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
+
+    // ⑥′ 拖拽：高亮、落碗接受、落碗外不收。松手判定在适配层，
+    // 自检直接以世界坐标驱动总线事件，走的仍是"适配层判定 → 核心放入 → 视图重绘"这条真链路。
+    const bowlCenter = worldCenter(findNode(gamePage, 'BowlArea'));
+    const trayPoint = worldCenter(findNode(gamePage, 'TrayArea'));
+
+    bus.emit(BusEvent.DragMoved, { x: bowlCenter.x, y: bowlCenter.y });
+    this.check('拖到碗上时碗区高亮', findNode(gamePage, 'BowlHighlight')?.active === true);
+
+    bus.emit(BusEvent.DragMoved, trayPoint);
+    this.check('拖回配料盘时高亮熄灭', findNode(gamePage, 'BowlHighlight')?.active === false);
+
+    const dragInName = nextOrderNames[1] ?? '';
+    bus.emit(BusEvent.DragEnded, { ingredientId: ingredientIdByName(dragInName), x: bowlCenter.x, y: bowlCenter.y });
+    await wait(30);
+    this.check('拖进碗里的配料被接受', (bowlLabel?.string ?? '').includes(dragInName), bowlLabel?.string ?? '');
+    this.check('拖入后已放进度为 1', numberIn(labelText(gamePage, 'ProgressLine')) === 1, labelText(gamePage, 'ProgressLine'));
+
+    const dragOutName = nextOrderNames[2] ?? '';
+    bus.emit(BusEvent.DragEnded, { ingredientId: ingredientIdByName(dragOutName), x: trayPoint.x, y: trayPoint.y });
+    await wait(30);
+    this.check(
+      '松手在碗外的配料不被接受（进度不变）',
+      numberIn(labelText(gamePage, 'ProgressLine')) === 1,
+      labelText(gamePage, 'ProgressLine'),
+    );
+    this.check('松手后高亮熄灭', findNode(gamePage, 'BowlHighlight')?.active === false);
 
     // ⑦ 难度换档：越过配置里的分段点之后，新订单的小料数按曲线走
     // （断言名沿用验收里的"20 秒 / 40 秒"，期望值则从曲线算，改数值配置不会被写死的期望卡住）
@@ -361,6 +390,17 @@ function findSlotByName(tray: Node | null, ingredientName: string): Node | null 
 /** 找一个不在订单里的配料名，用来制造错放 */
 function firstOutsider(tray: Node | null, orderNames: readonly string[]): string {
   return traySlots(tray).find((slot) => !orderNames.includes(slot.name))?.name ?? '';
+}
+
+/** 节点的世界坐标中心点：给拖拽自检当"碗中心"用 */
+function worldCenter(node: Node | null): { x: number; y: number } {
+  const world = node?.worldPosition ?? new Vec3();
+  return { x: world.x, y: world.y };
+}
+
+/** 配料中文名 → id：拖拽事件的载荷用的是 id */
+function ingredientIdByName(ingredientName: string): string {
+  return ALL_INGREDIENTS.find((item) => item.name === ingredientName)?.id ?? '';
 }
 
 /** 取某个节点上的标签文本 */

@@ -52,3 +52,8 @@ const INGREDIENTS_BY_ID: ReadonlyMap<string, IngredientDef> = new Map(
 export function getIngredient(id: string): IngredientDef | undefined {
   return INGREDIENTS_BY_ID.get(id);
 }
+
+/** 按 id 取配料的中文名；id 非法时原样返回，兜底显示比显示空白强 */
+export function ingredientName(id: string): string {
+  return INGREDIENTS_BY_ID.get(id)?.name ?? id;
+}

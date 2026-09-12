@@ -1,5 +1,5 @@
 import { _decorator, Component, Label } from 'cc';
-import { getIngredient } from '../config/ingredients';
+import { ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
@@ -42,9 +42,4 @@ export class OrderCard extends Component {
       this.progressLabel.string = `${STRINGS.placedLabel} ${bowlIds.length} / ${requiredIds.length}`;
     }
   }
-}
-
-function ingredientName(ingredientId: string): string {
-  const ingredient = getIngredient(ingredientId);
-  return ingredient ? ingredient.name : ingredientId;
 }

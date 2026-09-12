@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, Node } from 'cc';
+import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3 } from 'cc';
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
 import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
@@ -11,26 +11,50 @@ const COLUMN_SPACING = 180;
 const ROW_SPACING = 118;
 const SLOT_WIDTH = 160;
 const SLOT_HEIGHT = 96;
+/** 行数由配料总数推出，别在改配料表时忘了同步这里 */
+const ROW_COUNT = Math.ceil(ALL_INGREDIENTS.length / COLUMN_COUNT);
+
+/** 手指挪动超过这个距离才算"拖动"，否则当作点按（Button 的 click 路径） */
+const DRAG_THRESHOLD_PX = 8;
+/** 跟手幽灵的尺寸：比格子小一号，跟着手指走又不挡太多视线 */
+const GHOST_WIDTH = 120;
+const GHOST_HEIGHT = 64;
+
+/** 一次进行中的拖动：哪格配料、哪个手指、走没走出"点按"范围 */
+interface ActiveDrag {
+  ingredientId: string;
+  touchId: number;
+  /** 幽灵的世界坐标起点，用于判断位移是否超过点按阈值 */
+  startX: number;
+  startY: number;
+  moved: boolean;
+  ghost: Node;
+}
 
 /**
- * 配料盘：把 12 格配料摆出来，负责"玩家点了哪一格"。
- * 它不知道规则——点一下只发一条事件，放不放得进碗由核心决定。
+ * 配料盘：把 12 格配料摆出来，负责"玩家用哪种手势选中了哪一格"。
+ * 它不知道规则也不认识碗——点按只发一条事件；拖动只上报"拖着谁、松手在哪"，
+ * 落点算不算进碗由适配层判定，放不放得进碗里由核心决定。
  */
 @ccclass('IngredientTray')
 export class IngredientTray extends Component {
   private slotNodes = new Map<string, Node>();
+  /** 全盘同时只认一根手指的拖动，第二根手指的按下直接忽略 */
+  private activeDrag: ActiveDrag | null = null;
 
   protected onLoad(): void {
     this.buildSlots();
   }
 
   protected onDestroy(): void {
+    // 组件被拆时拖动还悬着的话，先把高亮熄掉、幽灵收掉，别把状态漏到下一局
+    this.abandonDrag();
     this.slotNodes.clear();
   }
 
-  /** 供拖动（06 切片）查询某格节点 */
-  getSlotNode(ingredientId: string): Node | null {
-    return this.slotNodes.get(ingredientId) ?? null;
+  protected onDisable(): void {
+    // 单局页在拖动中途被藏起来（时间到切结算页等）：触摸事件不会再回来收尾，这里兜底复位
+    this.abandonDrag();
   }
 
   private buildSlots(): void {
@@ -38,7 +62,8 @@ export class IngredientTray extends Component {
       const column = index % COLUMN_COUNT;
       const row = Math.floor(index / COLUMN_COUNT);
       const x = (column - (COLUMN_COUNT - 1) / 2) * COLUMN_SPACING;
-      const y = -row * ROW_SPACING;
+      // 三行以托盘中心为基准上下对称排开：正着数第三行会探出面板、掉到屏幕外
+      const y = ((ROW_COUNT - 1) / 2 - row) * ROW_SPACING;
 
       const slot = createUiNode(this.node, `Slot_${ingredient.id}`, SLOT_WIDTH, SLOT_HEIGHT, y, x);
       paintPanel(slot, UI_COLOR.panel, UI_COLOR.panelBorder);
@@ -52,12 +77,119 @@ export class IngredientTray extends Component {
       const ingredientId = ingredient.id;
       slot.on(Button.EventType.CLICK, () => this.onSlotClicked(ingredientId), this);
 
+      // 拖拽手势与点按并存：挪动超过阈值按拖动走，否则仍交给 Button 的 click
+      slot.on(Node.EventType.TOUCH_START, (event: EventTouch) => this.onSlotTouchStart(ingredientId, event), this);
+      slot.on(Node.EventType.TOUCH_MOVE, (event: EventTouch) => this.onSlotTouchMove(event), this);
+      slot.on(Node.EventType.TOUCH_END, (event: EventTouch) => this.onSlotTouchEnd(event), this);
+      slot.on(Node.EventType.TOUCH_CANCEL, (event: EventTouch) => this.onSlotTouchCancel(event), this);
+
       this.slotNodes.set(ingredientId, slot);
     });
   }
 
   private onSlotClicked(ingredientId: string): void {
+    // 拖动途中松手也会触发 Button 的 click（手指落点可能还在格子里），
+    // 这类 click 已经由拖动路径处理过，不能再报一次，否则同一份配料进两次碗。
+    // 这依赖注册顺序：Button 在 addComponent 时先注册监听，click 总是先于本组件的 TOUCH_END 触发
+    if (this.activeDrag?.moved) return;
     // 只上报"玩家点了谁"，判定权在核心
     bus.emit(BusEvent.DropIngredient, ingredientId);
+  }
+
+  private onSlotTouchStart(ingredientId: string, event: EventTouch): void {
+    // 已经有一根手指在拖了：后续手指一律不接
+    if (this.activeDrag) return;
+
+    const ghost = this.createGhost(ingredientId);
+    if (!ghost) return;
+    // 幽灵世界坐标就是拖动位置的基准，后续每帧用触点增量推进，全程不需要再做坐标换算
+    const world = ghost.worldPosition;
+    this.activeDrag = {
+      ingredientId,
+      touchId: event.getID(),
+      startX: world.x,
+      startY: world.y,
+      moved: false,
+      ghost,
+    };
+  }
+
+  private onSlotTouchMove(event: EventTouch): void {
+    const drag = this.activeDrag;
+    // 触摸事件只会派回"按下时抓住它的节点"，但仍要核对触点 id，防多指串扰
+    if (!drag || event.getID() !== drag.touchId) return;
+
+    // 用 UI 坐标系的位移增量挪幽灵：增量与坐标原点无关，跟手且无需换算
+    const delta = event.getUIDelta();
+    drag.ghost.setPosition(drag.ghost.position.x + delta.x, drag.ghost.position.y + delta.y, 0);
+
+    const world = drag.ghost.worldPosition;
+    const distance = Math.hypot(world.x - drag.startX, world.y - drag.startY);
+    if (!drag.moved && distance > DRAG_THRESHOLD_PX) {
+      // 一旦越过阈值就按拖动算：Button 的 click 会在松手时被拦下
+      drag.moved = true;
+    }
+    if (drag.moved) {
+      bus.emit(BusEvent.DragMoved, { x: world.x, y: world.y });
+    }
+  }
+
+  private onSlotTouchEnd(event: EventTouch): void {
+    const drag = this.activeDrag;
+    if (!drag || event.getID() !== drag.touchId) return;
+
+    if (drag.moved) {
+      // 松手落点交给适配层判定；碗里收不收由核心说了算
+      const world = drag.ghost.worldPosition;
+      bus.emit(BusEvent.DragEnded, { ingredientId: drag.ingredientId, x: world.x, y: world.y });
+    }
+    // 没挪动过的就是点按：Button 的 click 路径已经在别处上报，这里只管收尾
+    this.endDrag();
+  }
+
+  private onSlotTouchCancel(event: EventTouch): void {
+    const drag = this.activeDrag;
+    if (!drag || event.getID() !== drag.touchId) return;
+    // 被系统打断的拖动不做落点判定，安静收场即可
+    bus.emit(BusEvent.DragCanceled);
+    this.endDrag();
+  }
+
+  /** 收尾：熄掉高亮、拆掉幽灵、归还"同一时间一次拖动"的名额 */
+  private endDrag(): void {
+    if (!this.activeDrag) return;
+    this.activeDrag.ghost.destroy();
+    this.activeDrag = null;
+  }
+
+  /** 非正常收尾（组件销毁/页面失活）：按"拖动被打断"处理 */
+  private abandonDrag(): void {
+    if (!this.activeDrag) return;
+    bus.emit(BusEvent.DragCanceled);
+    this.endDrag();
+  }
+
+  /** 造一个跟着手指走的幽灵：画成小面板 + 配料名，挂在单局页顶层 */
+  private createGhost(ingredientId: string): Node | null {
+    const slot = this.slotNodes.get(ingredientId);
+    const parent = this.node.parent;
+    if (!slot || !parent) return null;
+
+    const ingredient = ALL_INGREDIENTS.find((item) => item.id === ingredientId);
+    const ghost = createUiNode(parent, 'DragGhost', GHOST_WIDTH, GHOST_HEIGHT);
+    // 描边用强调色，跟托盘里的静态格子区分开，一眼能看出"手里拿着东西"
+    paintPanel(ghost, UI_COLOR.panel, UI_COLOR.textAccent);
+    createLabel(ghost, 'Name', ingredient ? ingredient.name : ingredientId, 0, 26, UI_COLOR.textPrimary, GHOST_WIDTH - 12);
+
+    // 起手落在源格子中心：取格子世界坐标，换算成幽灵父节点的局部坐标
+    const transform = parent.getComponent(UITransform);
+    const slotWorld = slot.worldPosition;
+    if (transform) {
+      const local = transform.convertToNodeSpaceAR(new Vec3(slotWorld.x, slotWorld.y, 0));
+      ghost.setPosition(local.x, local.y, 0);
+    } else {
+      ghost.setPosition(slotWorld.x, slotWorld.y, 0);
+    }
+    return ghost;
   }
 }

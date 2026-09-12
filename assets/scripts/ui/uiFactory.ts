@@ -10,6 +10,9 @@ export const UI_COLOR = {
   /** 倒计时进度条：底槽（半透明）与剩余时间填充 */
   barTrack: new Color(255, 255, 255, 30),
   barFill: new Color(255, 206, 130, 255),
+  /** 拖动悬停时碗区的高亮：淡琥珀填充 + 亮琥珀描边，提示"松手就进碗" */
+  bowlHighlightFill: new Color(255, 206, 130, 70),
+  bowlHighlightBorder: new Color(255, 206, 130, 230),
   /** 背景压暗层：开始页与结算页盖在背景图上，让文字读起来不费劲 */
   backgroundDim: new Color(0, 0, 0, 175),
 } as const;
