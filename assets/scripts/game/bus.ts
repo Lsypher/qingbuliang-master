@@ -19,6 +19,12 @@ export const BusEvent = {
   /** 拖动落点是否在碗区内（适配层 → 表现层），碗据此高亮/熄灭 */
   DragOverBowl: 'qingbuliang:drag-over-bowl',
   /**
+   * 错放反馈（适配层 → 表现层）：核心判定为错放后，把"哪份配料、落点在世界坐标哪"
+   * 交给表现层做弹回 / 红闪 / 飘字。重复放入走的是 `rejected` 核心事件，不触发这里，
+   * 所以本事件只对应真正的错放。
+   */
+  Misdrop: 'qingbuliang:misdrop',
+  /**
    * 切到哪一页了（组合根 → 视图）。
    * "当前是哪一页"只由切页那一处产生；跟着页面走的表现（背景换图与压暗）订阅它，
    * 不再各自拼一份页面状态。
@@ -46,6 +52,13 @@ export interface DragEndPayload extends DragPointPayload {
 /** 碗高亮载荷：拖动落点当前是否落在碗区内 */
 export interface DragOverBowlPayload {
   overBowl: boolean;
+}
+
+/** 错放反馈载荷：错放的配料 id + 落点世界坐标（点按无手指位置，落点取碗中心） */
+export interface MisdropPayload {
+  ingredientId: string;
+  x: number;
+  y: number;
 }
 
 /** 界面页：开始页 / 单局 / 结算页 */

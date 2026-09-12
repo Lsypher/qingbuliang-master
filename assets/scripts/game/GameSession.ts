@@ -27,14 +27,14 @@ export class GameSession extends Component {
   }
 
   protected onLoad(): void {
-    bus.on(BusEvent.DropIngredient, this.onDropIngredient, this);
+    bus.on(BusEvent.DropIngredient, this.onIngredientClicked, this);
     bus.on(BusEvent.DragMoved, this.onDragMoved, this);
     bus.on(BusEvent.DragEnded, this.onDragEnded, this);
     bus.on(BusEvent.DragCanceled, this.onDragCanceled, this);
   }
 
   protected onDestroy(): void {
-    bus.off(BusEvent.DropIngredient, this.onDropIngredient, this);
+    bus.off(BusEvent.DropIngredient, this.onIngredientClicked, this);
     bus.off(BusEvent.DragMoved, this.onDragMoved, this);
     bus.off(BusEvent.DragEnded, this.onDragEnded, this);
     bus.off(BusEvent.DragCanceled, this.onDragCanceled, this);
@@ -46,10 +46,28 @@ export class GameSession extends Component {
     this.publish(this.session.advance(deltaTime * 1000));
   }
 
+  /** 玩家点按了一格配料：点按没有手指位置，错放反馈锚在碗中心（玩家意图是把它放进碗） */
+  private onIngredientClicked(ingredientId: string): void {
+    this.applyDrop(ingredientId, null);
+  }
+
   /** 玩家的一次放入请求（点按与拖动落点殊途同归到这里） */
-  private onDropIngredient(ingredientId: string): void {
+  private applyDrop(ingredientId: string, point: { x: number; y: number } | null): void {
     if (!this.session) return;
-    this.publish(this.session.drop(ingredientId));
+    // 点按没有世界坐标，错放反馈就落在碗区中心，飘字与弹回才有合理起点
+    if (point === null) {
+      const bowl = this.resolveBowlTransform();
+      point = bowl ? { x: bowl.node.worldPosition.x, y: bowl.node.worldPosition.y } : { x: 0, y: 0 };
+    }
+
+    const events = this.session.drop(ingredientId);
+    this.publish(events);
+
+    // 错放：把"哪份配料 + 松手在哪"交给表现层做弹回 / 红闪 / 飘字；重复放入不进这里
+    const misdrop = events.find((event) => event.type === 'misdrop');
+    if (misdrop && misdrop.type === 'misdrop') {
+      bus.emit(BusEvent.Misdrop, { ingredientId: misdrop.ingredientId, x: point.x, y: point.y });
+    }
   }
 
   /** 拖动途中：把"当前落点在不在碗里"翻译成高亮事件，碗自己决定怎么画 */
@@ -57,11 +75,11 @@ export class GameSession extends Component {
     bus.emit(BusEvent.DragOverBowl, { overBowl: this.isOverBowl(point) });
   }
 
-  /** 松手：先熄高亮，落在碗区里就当作一次放入请求交给核心 */
+  /** 松手：先熄高亮，落在碗区里就当作一次放入请求交给核心（落点世界坐标留给错放反馈） */
   private onDragEnded(payload: DragEndPayload): void {
     const overBowl = this.isOverBowl(payload);
     bus.emit(BusEvent.DragOverBowl, { overBowl: false });
-    if (overBowl) this.onDropIngredient(payload.ingredientId);
+    if (overBowl) this.applyDrop(payload.ingredientId, { x: payload.x, y: payload.y });
   }
 
   /** 拖动被打断：只熄高亮，不做任何判定 */

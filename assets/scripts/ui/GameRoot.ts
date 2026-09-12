@@ -3,6 +3,7 @@ import type { RenderPayload, ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
+import { MisdropFeedback } from './MisdropFeedback';
 import { ResultView } from './ResultView';
 
 const { ccclass, property } = _decorator;
@@ -32,6 +33,7 @@ export class GameRoot extends Component {
     this.bindClick(this.restartButton, this.showGame);
     bus.on(BusEvent.Render, this.onRender, this);
     this.assembleBackground();
+    this.assembleMisdropFeedback();
     this.showStart();
   }
 
@@ -51,6 +53,21 @@ export class GameRoot extends Component {
     }
     if (!backgroundNode.getComponent(BackgroundView)) {
       backgroundNode.addComponent(BackgroundView);
+    }
+  }
+
+  /**
+   * 装配错放反馈层。
+   *
+   * 与背景层同理：编辑器当前拒绝保存场景改动，只能由组合根运行时补挂。
+   * 挂到单局页上——反馈节点是单局页的子节点，单局页隐藏时一并隐藏，不会漏到结算页；
+   * 带存在性判断，场景里已经挂了也不会重复挂。
+   */
+  private assembleMisdropFeedback(): void {
+    const gamePage = this.gamePage;
+    if (!gamePage) return;
+    if (!gamePage.getComponent(MisdropFeedback)) {
+      gamePage.addComponent(MisdropFeedback);
     }
   }
 

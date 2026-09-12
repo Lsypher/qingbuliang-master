@@ -15,6 +15,12 @@ export const UI_COLOR = {
   bowlHighlightBorder: new Color(255, 206, 130, 230),
   /** 背景压暗层：开始页与结算页盖在背景图上，让文字读起来不费劲 */
   backgroundDim: new Color(0, 0, 0, 175),
+  /** 错放红闪：只红在屏幕边缘（中间留空），不挡中央信息。实际亮度由 UIOpacity 控制淡出 */
+  misdropFlash: new Color(255, 70, 70, 220),
+  /** 错放飘字：高饱和正红，比原来的浅粉更跳眼，凑近也能一眼看见 */
+  misdropText: new Color(255, 60, 60, 255),
+  /** 错放飘字垫底描边：深红近黑，压在任何背景上都把上面的红字托出来 */
+  misdropShadow: new Color(40, 0, 0, 255),
 } as const;
 
 /** 建一个 UI 节点（自动挂 UITransform、设尺寸与层级） */

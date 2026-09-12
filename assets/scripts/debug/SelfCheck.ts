@@ -140,12 +140,17 @@ export class SelfCheck extends Component {
     const nextOrderNames = splitOrder(orderLabel?.string ?? '');
     this.check('已换下一位顾客（订单变化）', nextOrderNames.join('|') !== requiredNames.join('|'));
 
-    // ⑥ 错放：点一个不在订单里的配料，碗必须仍是空的
+    // ⑥ 错放：点一个不在订单里的配料，碗必须仍是空的；连击清零、红闪出现、倒计时扣 3 秒
     const outsiderName = firstOutsider(tray, nextOrderNames);
+    const beforeMisdrop = countdownSeconds(gamePage);
     emitClick(findSlotByName(tray, outsiderName));
     this.countMisdrop();
     await wait(60);
     this.check('点订单外的配料不会进碗', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
+    this.check('错放后连击清零（界面同步归零）', hudText(gamePage).includes('连击 0'), hudText(gamePage));
+    this.check('错放后红闪反馈出现', findNode(gamePage, 'MisdropFlash')?.active === true);
+    const misdropDrop = beforeMisdrop - countdownSeconds(gamePage);
+    this.check('错放扣时 3 秒（倒计时立刻减少）', misdropDrop >= 2 && misdropDrop <= 4, `${beforeMisdrop} -> ${countdownSeconds(gamePage)}`);
 
     // ⑥′ 拖拽：高亮、落碗接受、落碗外不收。松手判定在适配层，
     // 自检直接以世界坐标驱动总线事件，走的仍是"适配层判定 → 核心放入 → 视图重绘"这条真链路。
@@ -158,11 +163,30 @@ export class SelfCheck extends Component {
     bus.emit(BusEvent.DragMoved, trayPoint);
     this.check('拖回配料盘时高亮熄灭', findNode(gamePage, 'BowlHighlight')?.active === false);
 
+    // ⑥″ 拖拽错放：把订单外的配料拖进碗，碗不变、红闪出现、倒计时再减 3 秒、连击保持 0
+    const beforeDragMis = countdownSeconds(gamePage);
+    const dragOutsiderId = ingredientIdByName(firstOutsider(tray, nextOrderNames));
+    bus.emit(BusEvent.DragEnded, { ingredientId: dragOutsiderId, x: bowlCenter.x, y: bowlCenter.y });
+    await wait(60);
+    this.check('拖拽错放：订单外配料不进碗', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
+    this.check('拖拽错放：红闪反馈出现', findNode(gamePage, 'MisdropFlash')?.active === true);
+    const dragMisDrop = beforeDragMis - countdownSeconds(gamePage);
+    this.check('拖拽错放：倒计时再减 3 秒', dragMisDrop >= 2 && dragMisDrop <= 4, `${beforeDragMis} -> ${countdownSeconds(gamePage)}`);
+    this.check('拖拽错放：连击仍为 0', hudText(gamePage).includes('连击 0'), hudText(gamePage));
+
     const dragInName = nextOrderNames[1] ?? '';
     bus.emit(BusEvent.DragEnded, { ingredientId: ingredientIdByName(dragInName), x: bowlCenter.x, y: bowlCenter.y });
     await wait(30);
     this.check('拖进碗里的配料被接受', (bowlLabel?.string ?? '').includes(dragInName), bowlLabel?.string ?? '');
     this.check('拖入后已放进度为 1', numberIn(labelText(gamePage, 'ProgressLine')) === 1, labelText(gamePage, 'ProgressLine'));
+
+    // ⑥‴ 重复放入：碗里已有时再放一次，核心走 rejected，界面无任何变化（碗不变、不扣时、不红闪）
+    const beforeDup = bowlLabel?.string ?? '';
+    const beforeDupCountdown = countdownSeconds(gamePage);
+    emitClick(findSlotByName(tray, dragInName));
+    await wait(60);
+    this.check('重复放入同一配料：碗内容不变', (bowlLabel?.string ?? '') === beforeDup, bowlLabel?.string ?? '');
+    this.check('重复放入同一配料：不扣时（无错放）', countdownSeconds(gamePage) === beforeDupCountdown, `${beforeDupCountdown} -> ${countdownSeconds(gamePage)}`);
 
     const dragOutName = nextOrderNames[2] ?? '';
     bus.emit(BusEvent.DragEnded, { ingredientId: ingredientIdByName(dragOutName), x: trayPoint.x, y: trayPoint.y });
