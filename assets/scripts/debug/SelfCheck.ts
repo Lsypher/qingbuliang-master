@@ -3,7 +3,10 @@ import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { ALL_INGREDIENTS, ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
+import type { SessionEvent } from '../core/session';
+import type { ScoreRecord } from '../game/bestScore';
 import { readBestScore } from '../game/bestScore';
+import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { UI_COLOR } from '../ui/uiFactory';
 
@@ -11,6 +14,12 @@ const { ccclass } = _decorator;
 
 /** 自检需要伸进去的手：手动推一把时间，让 60 秒的规则不必真等 60 秒 */
 type SessionDriver = { update: (deltaTime: number) => void };
+
+/** 核心给出的单局结算 */
+type FinishedEvent = Extract<SessionEvent, { type: 'finished' }>;
+
+/** 自检需要伸进去的手：按给定结论摆一次结算页（不写盘），用来把"破纪录"两个方向都走一遍 */
+type ResultRenderer = { render: (finished: FinishedEvent, record: ScoreRecord) => void };
 
 /**
  * 开发期自检：预览启动后脚本化地打一局，把每条验收结论打到控制台（前缀 [SELFTEST]）。
@@ -33,16 +42,26 @@ export class SelfCheck extends Component {
   private bestStreak = 0;
   /** 开局时的最高分，用来判断这一局有没有破纪录 */
   private bestAtBoot = 0;
+  /** 本局核心给出的结算事件：结算页要用它按两种结论各摆一次（见 ⑨′） */
+  private finishedEvent: FinishedEvent | null = null;
 
   protected async start(): Promise<void> {
+    bus.on(BusEvent.Render, this.captureFinished, this);
     await wait(600);
     try {
       await this.run();
     } catch (error) {
       this.check('自检未抛异常', false, String(error));
     }
+    bus.off(BusEvent.Render, this.captureFinished, this);
     this.report();
     this.backToStartPage();
+  }
+
+  /** 顺手留住本局的 finished 事件（只是抄一份，不参与任何判定） */
+  private captureFinished(payload: RenderPayload): void {
+    const finished = payload.events.find((event) => event.type === 'finished');
+    if (finished && finished.type === 'finished') this.finishedEvent = finished;
   }
 
   private async run(): Promise<void> {
@@ -69,7 +88,8 @@ export class SelfCheck extends Component {
     } | null;
     this.check('Canvas 挂着 GameRoot（切页与开局的入口）', gameRoot !== null);
 
-    // ⓪ 开始页的最高分与本地存储对得上——"刷新浏览器后最高分仍在"靠的就是这条
+    // ⓪ 开始页：文案全部来自 strings.ts，最高分与本地存储对得上
+    // （"刷新浏览器后最高分仍在"靠的就是后半条）
     const startPage = pages?.getChildByName('StartPage') ?? null;
     this.bestAtBoot = readBestScore();
     this.check(
@@ -77,6 +97,7 @@ export class SelfCheck extends Component {
       numberIn(labelText(startPage, 'BestScore')) === this.bestAtBoot,
       `页面=${labelText(startPage, 'BestScore')} 存储=${this.bestAtBoot}`,
     );
+    this.check('开始页文案与 strings.ts 一致', startCopyMatches(startPage), describeStartCopy(startPage));
 
     // ⓪′ 背景层：开始页应当是压暗的
     this.check('开始页把背景压暗', backgroundState(canvas).dimmed === true);
@@ -87,6 +108,16 @@ export class SelfCheck extends Component {
 
     this.check('点开摊后进入单局页', gamePage.active);
     this.check('开始页已隐藏', findNode(canvas, 'StartPage')?.active === false);
+
+    // ①′ 首局引导：配料盘上方浮出那一行；文案与 strings.ts 一致，且不压住盘里的格子与碗标题
+    const guide = findNode(gamePage, 'GuideHintBox');
+    this.check('首局进入时引导浮出', guide?.active === true, describeGuide(guide));
+    this.check(
+      '引导文字与 strings.ts 一致',
+      newestLabelText(gamePage, 'GuideHintBoxText') === STRINGS.guide,
+      newestLabelText(gamePage, 'GuideHintBoxText'),
+    );
+    this.check('引导不压配料盘格子、不压碗标题', guideClearsTray(gamePage, guide), describeGuide(guide));
 
     // 订单卡改用图标行展示，节点名形如 Icon_<id>_<index>；自检从图标行读回所需配料
     const orderIconsNode = findNode(gamePage, 'OrderIcons');
@@ -159,6 +190,8 @@ export class SelfCheck extends Component {
     this.check('凑齐后自动出餐（碗已清空）', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
     this.check('完成订单数变为 1', hudText(gamePage).includes('完成订单 1'), hudText(gamePage));
     this.check('分数已增长', !hudText(gamePage).includes('分数 0'), hudText(gamePage));
+    // 首单出餐 = 玩家已经知道怎么玩了：引导收起（这里等过了淡出的时间）
+    this.check('首单出餐后引导消失', findNode(gamePage, 'GuideHintBox')?.active === false, describeGuide(findNode(gamePage, 'GuideHintBox')));
 
     const nextOrderNames = orderRequiredNames(orderIconsNode);
     this.check('已换下一位顾客（订单变化）', nextOrderNames.join('|') !== requiredNames.join('|'));
@@ -303,7 +336,46 @@ export class SelfCheck extends Component {
     );
     this.check('结算页最高分与存储一致', resultBest === readBestScore(), `结算页=${resultBest} 存储=${readBestScore()}`);
 
-    // ⑨′ 背景：结算页压暗，且这一局自始至终是同一张
+    // ⑨′ 结算页：文案与 strings.ts 一致；破纪录才补一句"老板娘都服了"；底部有一行素材致谢
+    this.check('结算页文案与 strings.ts 一致', resultCopyMatches(resultPage), describeResultCopy(resultPage));
+    const brokeRecord = finalScore > this.bestAtBoot;
+    const recordLine = findNode(resultPage, 'NewRecordLine');
+    this.check(
+      '本局有没有破纪录，提示与之一致',
+      recordLine !== null && recordLine.active === brokeRecord,
+      `本局=${finalScore} 开局时最高分=${this.bestAtBoot} 提示=${recordLine?.active ?? '无这一行'}`,
+    );
+
+    // "破纪录才显示"两个方向都要亲眼见一次：render 只摆页面、不写盘，
+    // 所以可以拿同一个结算事件按两种结论各摆一次，最后再用真实结论还原页面
+    const resultView = resultPage?.getComponent('ResultView') as unknown as ResultRenderer | null;
+    const finishedAtEnd = this.finishedEvent;
+    if (resultView && finishedAtEnd && recordLine) {
+      resultView.render(finishedAtEnd, { best: Math.max(this.bestAtBoot, finalScore), improved: false });
+      this.check('没破纪录时不显示"老板娘都服了"', recordLine.active === false, describeRecordLine(resultPage));
+      resultView.render(finishedAtEnd, { best: finalScore, improved: true });
+      this.check(
+        '破纪录时显示"老板娘都服了"',
+        recordLine.active === true && labelText(resultPage, 'NewRecordLine') === STRINGS.result.newRecord,
+        describeRecordLine(resultPage),
+      );
+      resultView.render(finishedAtEnd, { best: Math.max(this.bestAtBoot, finalScore), improved: brokeRecord });
+      this.check('两个方向走完，页面还原成这一局的真实结论', recordLine.active === brokeRecord, describeRecordLine(resultPage));
+    }
+    this.check(
+      '结算页有素材致谢',
+      labelText(resultPage, 'CreditLine') === `${STRINGS.creditLabel}：${STRINGS.creditLine}`,
+      labelText(resultPage, 'CreditLine'),
+    );
+    const creditBox = worldBox(findNode(resultPage, 'CreditLine'));
+    const resultCanvasBox = worldBox(canvas);
+    this.check(
+      '结算页致谢行在屏幕内（排版不越界）',
+      !!creditBox && !!resultCanvasBox && contains(resultCanvasBox, creditBox),
+      describeBox(creditBox),
+    );
+
+    // ⑨″ 背景：结算页压暗，且这一局自始至终是同一张
     this.check('结算页把背景压暗', backgroundState(canvas).dimmed === true);
     this.check(
       '同一局内背景不切换',
@@ -323,6 +395,12 @@ export class SelfCheck extends Component {
     );
     this.check('重开后倒计时回到 60', countdownSeconds(gamePage) === 60, countdownText(gamePage));
     this.check('重开后碗是空的', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
+    // 引导只在还没出过餐时出现：这一局之前已经出过餐，重开也不该再冒出来
+    this.check(
+      '重开一局不再出现引导',
+      findNode(gamePage, 'GuideHintBox')?.active === false,
+      describeGuide(findNode(gamePage, 'GuideHintBox')),
+    );
     const freshOrder = orderRequiredNames(orderIconsNode);
     this.check('重开后是新的 1 汤底 + 3 小料订单', freshOrder.length === 4, freshOrder.join('|'));
     // 上一局末尾倒计时正红着脉冲，新一局必须把它按回常态
@@ -580,6 +658,77 @@ function describeOrderIcon(icon: Node | null): string {
   if (!icon) return '无图标';
   const sprite = icon.getComponent(Sprite);
   return `${icon.name} 勾=${icon.getChildByName('OrderCheck') ? '有' : '无'} alpha=${sprite ? sprite.color.a : '无精灵'}`;
+}
+
+/** 开始页五行文案是否与 strings.ts 对得上（标题 / 副标题 / 玩法 / 最高分 / 开摊） */
+function startCopyMatches(startPage: Node | null): boolean {
+  const buttonLabel = labelText(startPage?.getChildByName('StartButton') ?? null, 'Label');
+  return (
+    labelText(startPage, 'Title') === STRINGS.title &&
+    labelText(startPage, 'Subtitle') === STRINGS.subtitle &&
+    labelText(startPage, 'HowToPlay') === STRINGS.howToPlay &&
+    labelText(startPage, 'BestScore').startsWith(STRINGS.bestScoreLabel) &&
+    buttonLabel === STRINGS.startButton
+  );
+}
+
+function describeStartCopy(startPage: Node | null): string {
+  const buttonLabel = labelText(startPage?.getChildByName('StartButton') ?? null, 'Label');
+  return [
+    `Title=${labelText(startPage, 'Title')}`,
+    `Subtitle=${labelText(startPage, 'Subtitle')}`,
+    `HowToPlay=${labelText(startPage, 'HowToPlay')}`,
+    `BestScore=${labelText(startPage, 'BestScore')}`,
+    `StartButton=${buttonLabel}`,
+  ].join('|');
+}
+
+/** 结算页的固定文案是否与 strings.ts 对得上（标题 / 四个数值行前缀 / 破纪录 / 再来一碗） */
+function resultCopyMatches(resultPage: Node | null): boolean {
+  const buttonLabel = labelText(resultPage?.getChildByName('RestartButton') ?? null, 'Label');
+  return (
+    labelText(resultPage, 'Title') === STRINGS.result.title &&
+    labelText(resultPage, 'ScoreLine').startsWith(STRINGS.result.scoreLabel) &&
+    labelText(resultPage, 'OrdersLine').startsWith(STRINGS.result.ordersLabel) &&
+    labelText(resultPage, 'ComboLine').startsWith(STRINGS.result.comboLabel) &&
+    labelText(resultPage, 'BestLine').startsWith(STRINGS.bestScoreLabel) &&
+    labelText(resultPage, 'NewRecordLine') === STRINGS.result.newRecord &&
+    labelText(resultPage, 'CreditLine') === `${STRINGS.creditLabel}：${STRINGS.creditLine}` &&
+    buttonLabel === STRINGS.result.restartButton
+  );
+}
+
+function describeResultCopy(resultPage: Node | null): string {
+  const buttonLabel = labelText(resultPage?.getChildByName('RestartButton') ?? null, 'Label');
+  return [
+    `Title=${labelText(resultPage, 'Title')}`,
+    `BestLine=${labelText(resultPage, 'BestLine')}`,
+    `NewRecordLine=${labelText(resultPage, 'NewRecordLine')}`,
+    `RestartButton=${buttonLabel}`,
+  ].join('|');
+}
+
+/** "老板娘都服了"这一行当前是露着还是藏着 */
+function describeRecordLine(resultPage: Node | null): string {
+  const line = findNode(resultPage, 'NewRecordLine');
+  return line ? `active=${line.active} 文字=${labelText(resultPage, 'NewRecordLine')}` : '没有这一行';
+}
+
+/** 引导行是否只占着配料盘上方的空档：不压盘里的格子，也不压碗区的标题 */
+function guideClearsTray(gamePage: Node, guide: Node | null): boolean {
+  const box = worldBox(guide);
+  const tray = findNode(gamePage, 'TrayArea');
+  if (!box || !tray) return false;
+  const hitsSlot = traySlots(tray).some((slot) => {
+    const slotBox = worldBox(slot.node);
+    return !!slotBox && overlaps(box, slotBox);
+  });
+  const titleBox = worldBox(findNode(gamePage, 'BowlTitle'));
+  return !hitsSlot && !(titleBox !== null && overlaps(box, titleBox));
+}
+
+function describeGuide(guide: Node | null): string {
+  return guide ? `active=${guide.active} 位置=${describeBox(worldBox(guide))}` : '没有引导行';
 }
 
 /** 配料盘的格子：中文名与节点成对取出，按名字找与找"订单外的那个"都基于它 */

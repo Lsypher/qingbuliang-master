@@ -29,6 +29,9 @@ export const UI_COLOR = {
   comboShout: new Color(255, 150, 60, 255),
   /** 连击喊话垫底描边：深红近黑 */
   comboShoutShadow: new Color(70, 16, 0, 255),
+  /** 首局引导文字：暖白正文 + 深色垫底，浮在碗区面板上也读得清 */
+  guideText: new Color(255, 246, 222, 255),
+  guideShadow: new Color(28, 34, 44, 255),
   /** 订单卡上"已放入碗中"的打勾：亮绿；图标本体同时压暗，只留勾是亮的 */
   orderCheck: new Color(126, 226, 138, 255),
   orderCheckShadow: new Color(10, 44, 20, 255),

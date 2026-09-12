@@ -1,6 +1,10 @@
 /**
  * 文案表：界面上的中文全部集中在这里，不散落在组件里。
- * 海南味文案刻意克制在 5 处（副标题、开摊、食饱未、老板娘都服了、再来一碗），不做全篇方言。
+ * 页面上的固定文案由各自的视图组件从这里取（场景里那几行只是摆版时的预览值），
+ * 改文案只改这一处，"界面与文案表不一致"这种错不会再出现。
+ *
+ * 海南味文案刻意克制、不做全篇方言：带方言味的就 4 处——开摊、食饱未、连击的"够劲！"（见 comboShout）、
+ * 结算页的"老板娘都服了"；副标题是苏轼句，"再来一碗"与统计行都是普通话。
  */
 export const STRINGS = {
   title: '清补凉大师',
@@ -8,7 +12,7 @@ export const STRINGS = {
   subtitle: '椰树之上采琼浆，捧来一碗白玉香',
   howToPlay: '把配料拖进碗里，凑齐即出餐，60 秒看谁调得多',
   startButton: '开摊',
-  /** 首局引导，首单出餐后消失 */
+  /** 首局引导：浮在配料盘上方，首单出餐后消失（见 ui/GuideHint.ts） */
   guide: '把配料拖进碗里，凑齐即出餐',
 
   scoreLabel: '分数',
@@ -37,11 +41,14 @@ export const STRINGS = {
     scoreLabel: '本局分数',
     ordersLabel: '完成订单',
     comboLabel: '最高连击',
+    /** 只在破了纪录时显示 */
     newRecord: '老板娘都服了',
     restartButton: '再来一碗',
   },
 
+  /** 素材致谢：结算页一行小字，正文与 CREDITS.md 登记的内容对应 */
   creditLabel: '素材致谢',
+  creditLine: '图标 Microsoft Fluent Emoji（MIT）',
 } as const;
 
 export type Strings = typeof STRINGS;
