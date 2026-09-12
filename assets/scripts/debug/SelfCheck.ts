@@ -2,8 +2,10 @@ import { _decorator, Button, Component, Label, Node, Sprite, UITransform, Vec3, 
 import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { ALL_INGREDIENTS, ingredientName } from '../config/ingredients';
+import { STRINGS } from '../config/strings';
 import { readBestScore } from '../game/bestScore';
 import { BusEvent, bus } from '../game/bus';
+import { UI_COLOR } from '../ui/uiFactory';
 
 const { ccclass } = _decorator;
 
@@ -104,11 +106,19 @@ export class SelfCheck extends Component {
     this.check('倒计时随时间递减', afterTwoSeconds <= 58 && afterTwoSeconds >= 56, countdownText(gamePage));
     this.check('递减后进度条仍与数字一致', barMatchesCountdown(gamePage), barDetail(gamePage));
 
+    // ③‴ 告警段之前：倒计时是常态色、也没有被放大——"变红脉冲"只属于最后 10 秒
+    this.check(
+      '10 秒之前倒计时不变红、不脉冲',
+      labelHasColor(gamePage, 'CountdownLabel', UI_COLOR.textAccent) && countdownScale(gamePage) === 1,
+      `颜色=${countdownColorText(gamePage)} 缩放=${countdownScale(gamePage)}`,
+    );
+
     // ③′ 排版：Game View 截不到图，重叠与越界只能靠节点包围盒来兜
     this.checkHudLayout(canvas, gamePage);
 
     // ③″ 背景：单局里不压暗；图要铺满 720x1280，且图源本身就是 9:16（拉满不变形）
-    const roundBackground = backgroundState(canvas);
+    // 先等这一局的图落定再取样：背景是异步加载的，新图到手前屏幕上还是上一张（有意为之，避免闪空）
+    const roundBackground = await this.settleBackground(canvas);
     this.check('单局中背景不压暗', roundBackground.dimmed === false);
     this.check('背景图已加载', roundBackground.frame !== null, roundBackground.name);
     this.check(
@@ -120,11 +130,23 @@ export class SelfCheck extends Component {
 
     // ④ 故意反序点击，验证"集合匹配与放入顺序无关"；最后一下凑齐即出餐
     const tray = findNode(gamePage, 'TrayArea');
+    const scoreBeforeServe = numberIn(hudText(gamePage));
     for (const name of [...requiredNames].reverse()) {
       emitClick(findSlotByName(tray, name));
       await wait(30);
     }
     this.countServe();
+
+    // ④′ 出餐反馈：碗口上方飘出的得分，必须等于核心给出的本单得分（HUD 分数增量就是它）
+    const servedScore = numberIn(hudText(gamePage)) - scoreBeforeServe;
+    const floatedScore = numberIn(newestLabelText(gamePage, 'ScoreFloatText'));
+    this.check('出餐时碗口上方飘出得分', findNode(gamePage, 'ScoreFloat') !== null);
+    this.check(
+      '得分飘字数值与核心给出的本单得分一致',
+      servedScore > 0 && floatedScore === servedScore,
+      `飘字=${floatedScore} 本单=${servedScore}`,
+    );
+    this.check('1 连出餐不冒"够劲！"', findNode(gamePage, 'ComboShout') === null);
 
     // ⑤ 出餐过渡（0.4 秒）期间计时暂停：同步补时 0.3 秒，倒计时数值必须一动不动
     const frozen = countdownSeconds(gamePage);
@@ -176,17 +198,31 @@ export class SelfCheck extends Component {
     this.check('拖拽错放：连击仍为 0', hudText(gamePage).includes('连击 0'), hudText(gamePage));
 
     const dragInName = nextOrderNames[1] ?? '';
-    bus.emit(BusEvent.DragEnded, { ingredientId: ingredientIdByName(dragInName), x: bowlCenter.x, y: bowlCenter.y });
+    const dragInId = ingredientIdByName(dragInName);
+    bus.emit(BusEvent.DragEnded, { ingredientId: dragInId, x: bowlCenter.x, y: bowlCenter.y });
     await wait(30);
-    this.check('拖进碗里的配料被接受', (bowlLabel?.string ?? '').includes(dragInName), bowlLabel?.string ?? '');
+    // 碗里放的东西从 08 切片起改用图标行展示（不再有文字），所以这里读图标行而不是标签
+    this.check('拖进碗里的配料被接受', bowlIconIds(gamePage).includes(dragInId), bowlIconIds(gamePage).join('|'));
     this.check('拖入后已放进度为 1', numberIn(labelText(gamePage, 'ProgressLine')) === 1, labelText(gamePage, 'ProgressLine'));
 
+    // ⑥⁗ 订单卡："还差哪几项"靠已放入的打勾变暗来表达，未放入的保持原样
+    const placedIcon = orderIconFor(orderIconsNode, ingredientIdByName(dragInName));
+    this.check('订单卡把已放入的项打勾变暗', isIconChecked(placedIcon), describeOrderIcon(placedIcon));
+    const pendingIcons = nextOrderNames
+      .filter((name) => name !== dragInName)
+      .map((name) => orderIconFor(orderIconsNode, ingredientIdByName(name)));
+    this.check(
+      '订单卡里还没放进碗的项保持原样',
+      pendingIcons.length > 0 && pendingIcons.every((icon) => icon !== null && !isIconChecked(icon)),
+      `${pendingIcons.length} 项待放入，其中误标 ${pendingIcons.filter((icon) => isIconChecked(icon)).length} 项`,
+    );
+
     // ⑥‴ 重复放入：碗里已有时再放一次，核心走 rejected，界面无任何变化（碗不变、不扣时、不红闪）
-    const beforeDup = bowlLabel?.string ?? '';
+    const beforeDup = bowlIconIds(gamePage).join('|');
     const beforeDupCountdown = countdownSeconds(gamePage);
     emitClick(findSlotByName(tray, dragInName));
     await wait(60);
-    this.check('重复放入同一配料：碗内容不变', (bowlLabel?.string ?? '') === beforeDup, bowlLabel?.string ?? '');
+    this.check('重复放入同一配料：碗内容不变', bowlIconIds(gamePage).join('|') === beforeDup, beforeDup);
     this.check('重复放入同一配料：不扣时（无错放）', countdownSeconds(gamePage) === beforeDupCountdown, `${beforeDupCountdown} -> ${countdownSeconds(gamePage)}`);
 
     const dragOutName = nextOrderNames[2] ?? '';
@@ -213,6 +249,7 @@ export class SelfCheck extends Component {
 
     session?.update((DIFFICULTY_STAGES[1].untilMs - DIFFICULTY_STAGES[0].untilMs) / 1000 + 1);
     await this.serveOrder(tray, stage2Names);
+    this.check('2 连仍不冒"够劲！"', findNode(gamePage, 'ComboShout') === null);
     await wait(700);
     const stage3Names = orderRequiredNames(orderIconsNode);
     this.check(
@@ -221,6 +258,20 @@ export class SelfCheck extends Component {
       stage3Names.join('|'),
     );
     this.check('换档后进度条仍与数字一致', barMatchesCountdown(gamePage), barDetail(gamePage));
+
+    // ⑦′ 连击喊话：这一单是第三连，该冒出"够劲！"了（前两单的"不冒"在上面已核对）
+    await this.serveOrder(tray, stage3Names);
+    this.check(
+      '3 连冒出"够劲！"',
+      findNode(gamePage, 'ComboShout') !== null && newestLabelText(gamePage, 'ComboShoutText') === STRINGS.comboShout,
+      newestLabelText(gamePage, 'ComboShoutText'),
+    );
+
+    // ⑦″ 最后 10 秒：数字与进度条一起转红，数字开始脉冲
+    // （"每局只触发一次"由核心的 warned 保证，这里核对表现：一直亮着、且动画没被反复重启）
+    this.check('最后 10 秒倒计时变红', labelHasColor(gamePage, 'CountdownLabel', UI_COLOR.countdownWarning), countdownColorText(gamePage));
+    const pulseMax = await this.maxCountdownScale(gamePage);
+    this.check('最后 10 秒倒计时在脉冲', pulseMax > 1.02, `采样到的最大缩放=${pulseMax.toFixed(3)}`);
 
     // ⑧ 时间归零：自动进结算页；此后再点配料不得有任何反应
     session?.update(60);
@@ -274,8 +325,48 @@ export class SelfCheck extends Component {
     this.check('重开后碗是空的', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
     const freshOrder = orderRequiredNames(orderIconsNode);
     this.check('重开后是新的 1 汤底 + 3 小料订单', freshOrder.length === 4, freshOrder.join('|'));
+    // 上一局末尾倒计时正红着脉冲，新一局必须把它按回常态
+    this.check(
+      '重开后倒计时恢复常态（不变红、不脉冲）',
+      labelHasColor(gamePage, 'CountdownLabel', UI_COLOR.textAccent) && countdownScale(gamePage) === 1,
+      `颜色=${countdownColorText(gamePage)} 缩放=${countdownScale(gamePage)}`,
+    );
 
-    // ⑩′ 背景每局重抽：连进 8 次单局，看抽到几张不同的（背景是异步加载，每次让出一小段时间）
+    // ⑩′ 连击链断了就不该再"够劲"：新一局时间充裕，正好把连击这条线走完整——
+    // 先连出 3 单（够劲出现），再错放断连击，紧接着的那一单不许再冒
+    await this.serveOrder(tray, orderRequiredNames(orderIconsNode));
+    this.check('重开一局后连击从 1 数起', hudText(gamePage).includes('连击 1'), hudText(gamePage));
+    await wait(700);
+
+    // 第二单带上连击加分：飘字数值仍要等于核心给的分数增量，说明飘的是本单总分而不是写死的数
+    const beforeComboServe = numberIn(hudText(gamePage));
+    await this.serveOrder(tray, orderRequiredNames(orderIconsNode));
+    const comboScore = numberIn(hudText(gamePage)) - beforeComboServe;
+    const comboFloat = numberIn(newestLabelText(gamePage, 'ScoreFloatText'));
+    this.check(
+      '带连击加分的单，飘字数值仍与核心一致',
+      comboScore > 0 && comboFloat === comboScore,
+      `飘字=${comboFloat} 本单=${comboScore}`,
+    );
+    this.check('2 连仍不冒"够劲！"', findNode(gamePage, 'ComboShout') === null);
+    await wait(700);
+
+    await this.serveOrder(tray, orderRequiredNames(orderIconsNode));
+    this.check(
+      '3 连冒出"够劲！"',
+      findNode(gamePage, 'ComboShout') !== null && newestLabelText(gamePage, 'ComboShoutText') === STRINGS.comboShout,
+      newestLabelText(gamePage, 'ComboShoutText'),
+    );
+    // 等"够劲！"自己演完再断连击，确保后面看到的"没有"不是残留
+    this.check('"够劲！"是短促过场（会自己消失）', await this.waitUntilGone(gamePage, 'ComboShout', 1500));
+
+    emitClick(findSlotByName(tray, firstOutsider(tray, orderRequiredNames(orderIconsNode))));
+    await wait(60);
+    this.check('错放断连击（界面连击归零）', hudText(gamePage).includes('连击 0'), hudText(gamePage));
+    await this.serveOrder(tray, orderRequiredNames(orderIconsNode));
+    this.check('错放断连击后不再冒"够劲！"', findNode(gamePage, 'ComboShout') === null);
+
+    // ⑩″ 背景每局重抽：连进 8 次单局，看抽到几张不同的（背景是异步加载，每次让出一小段时间）
     const pickedBackgrounds = new Set<string>();
     for (let i = 0; i < 8; i++) {
       gameRoot?.showGame();
@@ -314,6 +405,57 @@ export class SelfCheck extends Component {
       await wait(30);
     }
     this.countServe();
+  }
+
+  /**
+   * 采样一小会儿倒计时的缩放并返回最大值。
+   * 脉冲是一个来回 0.7 秒的循环，采样窗口盖住它一多半，采不到放大就说明动画没在走
+   * （比如被每帧重新启动、按在原地）。
+   */
+  private async maxCountdownScale(gamePage: Node): Promise<number> {
+    let max = 0;
+    for (let i = 0; i < 6; i++) {
+      max = Math.max(max, countdownScale(gamePage));
+      await wait(80);
+    }
+    return max;
+  }
+
+  /** 等某个用完即焚的反馈节点自己消失：超时仍没消失返回 false */
+  private async waitUntilGone(root: Node, name: string, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!findNode(root, name)) return true;
+      await wait(100);
+    }
+    return findNode(root, name) === null;
+  }
+
+  /**
+   * 等背景落定后再取样：新图是异步加载的，还没到手时屏幕上仍留着上一张（避免闪空，有意为之），
+   * 所以先让出一个加载窗口，再看连续两次采样是否一致。一致才算这一局的图已经到位，拿它当基准；
+   * 之后整局都不该再变——⑨′ 再采一次对比就是"同一局内不切换"。
+   *
+   * 已知边界：实测请求到回调 150~450ms（编辑器忙时会慢些）。窗口 800ms 加之后每 200ms 一次采样，
+   * 能容忍约 1.2 秒以内的加载；再慢就会把"还在加载"误判成"已落定"，这条断言会假失败。
+   * 真要根治得让 BackgroundView 报出"本局抽到哪张"（或给回调加序号丢弃过期结果），那属于 09 的范围。
+   */
+  private async settleBackground(
+    canvas: Node,
+    loadWindowMs = 800,
+    timeoutMs = 2500,
+  ): Promise<ReturnType<typeof backgroundState>> {
+    await wait(loadWindowMs);
+    let current = backgroundState(canvas);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await wait(200);
+      const next = backgroundState(canvas);
+      const settled = next.frame !== null && next.name === current.name;
+      current = next;
+      if (settled) return current;
+    }
+    return current;
   }
 
   /**
@@ -367,12 +509,17 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** 在子节点里按名字递归找人（视图是运行时建的，只能按名字找） */
-function findNode(root: Node | null | undefined, name: string): Node | null {
+/**
+ * 在子节点里按名字递归找人（视图是运行时建的，只能按名字找）。
+ * `newest` 为真时从后往前找：用完即焚的反馈（得分飘字、喊话）在销毁当帧还留在 children 里，
+ * 正着找会先撞上旧的那个，反向找才是刚建出来的这个。
+ */
+function findNode(root: Node | null | undefined, name: string, newest = false): Node | null {
   if (!root) return null;
   if (root.name === name) return root;
-  for (const child of root.children) {
-    const hit = findNode(child, name);
+  const children = root.children;
+  for (let index = 0; index < children.length; index++) {
+    const hit = findNode(children[newest ? children.length - 1 - index : index], name, newest);
     if (hit) return hit;
   }
   return null;
@@ -389,16 +536,50 @@ function emitClick(node: Node | null): void {
   node.emit(Button.EventType.CLICK);
 }
 
-/** 从订单卡图标行（节点名 Icon_<id>_<index>）读出所需配料的中文名数组 */
+/** 从订单卡图标行读出所需配料的中文名数组 */
 function orderRequiredNames(orderIcons: Node | null): string[] {
-  if (!orderIcons) return [];
-  return orderIcons.children
+  return iconRowIds(orderIcons).map(ingredientName);
+}
+
+/** 取最新那个同名标签上的文本 */
+function newestLabelText(root: Node | null, name: string): string {
+  return findNode(root, name, true)?.getComponent(Label)?.string ?? '';
+}
+
+/** 碗里当前的配料 id：碗用图标行展示，从那里读回 */
+function bowlIconIds(gamePage: Node | null): string[] {
+  return iconRowIds(findNode(gamePage, 'BowlIcons'));
+}
+
+/** 从图标行读回配料 id 数组（图标行按 Icon_<id>_<index> 命名，碗与订单卡共用这套命名） */
+function iconRowIds(row: Node | null): string[] {
+  if (!row) return [];
+  return row.children
     .filter((child) => child.name.startsWith('Icon_'))
-    .map((child) => {
-      const matched = /^Icon_(.+?)_\d+$/.exec(child.name);
-      return matched ? ingredientName(matched[1]) : '';
-    })
-    .filter((name) => name.length > 0);
+    .map((child) => /^Icon_(.+?)_\d+$/.exec(child.name)?.[1] ?? '')
+    .filter((id) => id.length > 0);
+}
+
+/** 订单卡上某个配料的图标节点：图标行按 Icon_<id>_<index> 命名。从后往前找——重绘时旧图标先被销毁但本帧还在 children 里 */
+function orderIconFor(orderIcons: Node | null, id: string): Node | null {
+  const children = orderIcons?.children ?? [];
+  for (let i = children.length - 1; i >= 0; i--) {
+    if (children[i].name.startsWith(`Icon_${id}_`)) return children[i];
+  }
+  return null;
+}
+
+/** 订单卡的图标是否已打勾变暗：勾是子节点，暗是精灵本体的 alpha；"明显压暗"才算，不能只看差一点 */
+function isIconChecked(icon: Node | null): boolean {
+  if (!icon || !icon.getChildByName('OrderCheck')) return false;
+  const sprite = icon.getComponent(Sprite);
+  return !!sprite && sprite.color.a < 200;
+}
+
+function describeOrderIcon(icon: Node | null): string {
+  if (!icon) return '无图标';
+  const sprite = icon.getComponent(Sprite);
+  return `${icon.name} 勾=${icon.getChildByName('OrderCheck') ? '有' : '无'} alpha=${sprite ? sprite.color.a : '无精灵'}`;
 }
 
 /** 配料盘的格子：中文名与节点成对取出，按名字找与找"订单外的那个"都基于它 */
@@ -448,6 +629,27 @@ function countdownText(root: Node | null): string {
 /** 从"倒计时 58"里取回 58；读不到返回 -1 */
 function countdownSeconds(root: Node | null): number {
   return numberIn(countdownText(root), true);
+}
+
+/** 倒计时标签当前的横向缩放：脉冲是否在走看它 */
+function countdownScale(root: Node | null): number {
+  return findNode(root, 'CountdownLabel')?.scale.x ?? -1;
+}
+
+/** 某个标签当前的颜色是不是指定值（核对"最后 10 秒变红"这类表现） */
+function labelHasColor(root: Node | null, name: string, color: { r: number; g: number; b: number }): boolean {
+  const label = findLabel(root, name);
+  return !!label && label.color.r === color.r && label.color.g === color.g && label.color.b === color.b;
+}
+
+/** 倒计时标签当前颜色的可读表示，断言失败时打出来 */
+function countdownColorText(root: Node | null): string {
+  const label = findLabel(root, 'CountdownLabel');
+  return label ? describeColor(label.color) : 'none';
+}
+
+function describeColor(color: { r: number; g: number; b: number }): string {
+  return `(${color.r},${color.g},${color.b})`;
 }
 
 /** 取文本里的数字；fromEnd=true 时取末尾那个（"前缀 + 数字"这类行） */

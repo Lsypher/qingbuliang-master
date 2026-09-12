@@ -1,4 +1,4 @@
-import { _decorator, Component, Label, Node } from 'cc';
+import { _decorator, Component, Label, Node, Tween, Vec3, tween } from 'cc';
 import { ROUND_DURATION_MS } from '../config/balance';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
@@ -12,13 +12,18 @@ const BAR_WIDTH = 560;
 const BAR_HEIGHT = 14;
 /** 进度条重绘阈值：比例变化小于此值就不动（560 像素宽下约 1 像素，省掉绝大多数帧的重绘） */
 const BAR_REDRAW_EPSILON = 0.002;
+/** 倒计时告警脉冲：放大到 1.15 再回落为一轮，半周期（秒） */
+const PULSE_HALF_PERIOD = 0.35;
+const PULSE_SCALE = 1.15;
 
 /**
  * 顶部信息条：倒计时（数字 + 进度条）、分数、完成订单、连击。
  *
  * 倒计时完全由核心给出的 `remainingMs` 推导——数字向上取整到秒、进度条取剩余比例，
  * 两者同源，所以"数字与进度条一致"是天然成立而不是靠对齐维护的。
- * 最后 10 秒变红脉冲留给 10 切片。
+ *
+ * 最后 10 秒的变红脉冲只认核心状态里的 `warned`：核心保证每局只置真一次，
+ * 这里只是把它镜像成"亮着 / 灭着"两种表现——所以既不会重复触发，新一局也自然复位。
  */
 @ccclass('HudView')
 export class HudView extends Component {
@@ -30,6 +35,9 @@ export class HudView extends Component {
   private lastSeconds = -1;
   private lastBarRatio = -1;
   private lastSignature: string | null = null;
+  /** 告警是否正亮着：与核心的 warned 保持同步，用来判断脉冲该起还是该停 */
+  private warningActive = false;
+  private pulseTween: Tween<Node> | null = null;
 
   protected onLoad(): void {
     this.buildCountdown();
@@ -38,6 +46,7 @@ export class HudView extends Component {
   }
 
   protected onDestroy(): void {
+    this.stopPulse();
     bus.off(BusEvent.Render, this.onRender, this);
   }
 
@@ -62,8 +71,40 @@ export class HudView extends Component {
   }
 
   private onRender(payload: RenderPayload): void {
+    // 只在"亮 / 灭"翻转时动一次：脉冲进行中反复启动会把动画按住不动
+    if (payload.state.warned !== this.warningActive) this.setCountdownWarning(payload.state.warned);
     this.renderCountdown(payload.state.remainingMs);
     this.renderStats(payload.state);
+  }
+
+  /** 最后 10 秒：数字与进度条一起转红，数字开始脉冲；复位时全部还原 */
+  private setCountdownWarning(active: boolean): void {
+    this.warningActive = active;
+    if (this.countdownLabel) {
+      this.countdownLabel.color = active ? UI_COLOR.countdownWarning : UI_COLOR.textAccent;
+    }
+    if (this.barFillNode) paintPanel(this.barFillNode, active ? UI_COLOR.countdownWarning : UI_COLOR.barFill);
+    if (active) this.startPulse();
+    else this.stopPulse();
+  }
+
+  /** 缩放脉冲：放大—还原往返循环；锚点在中心，不影响排版，只让数字"跳"起来 */
+  private startPulse(): void {
+    if (!this.countdownLabel || this.pulseTween) return;
+    const node = this.countdownLabel.node;
+    this.pulseTween = tween(node)
+      .to(PULSE_HALF_PERIOD, { scale: new Vec3(PULSE_SCALE, PULSE_SCALE, 1) }, { easing: 'sineInOut' })
+      .to(PULSE_HALF_PERIOD, { scale: new Vec3(1, 1, 1) }, { easing: 'sineInOut' })
+      .union()
+      .repeatForever()
+      .start();
+  }
+
+  /** 停脉冲并复位缩放：重开一局时数字必须回到正常大小 */
+  private stopPulse(): void {
+    this.pulseTween?.stop();
+    this.pulseTween = null;
+    if (this.countdownLabel) this.countdownLabel.node.setScale(1, 1, 1);
   }
 
   /** 倒计时：整秒向上取整（开局正好 60、归零正好 0），进度条取剩余比例 */

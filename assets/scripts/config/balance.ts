@@ -34,3 +34,9 @@ export const BASE_SCORE_PER_PORTION = 10;
  */
 export const COMBO_BONUS_STEP = 5;
 export const COMBO_BONUS_CAP = 25;
+
+/**
+ * 连击喊话门槛：连到这么多单起，每次出餐都冒出"够劲！"。
+ * 纯表现阈值（不影响计分），所以放在数值配置里由表现层读，不下沉到规则核心。
+ */
+export const COMBO_SHOUT_AT = 3;

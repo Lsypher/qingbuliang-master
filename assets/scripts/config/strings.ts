@@ -23,8 +23,12 @@ export const STRINGS = {
   /** 碗区域文案 */
   bowlTitle: '碗中',
   bowlEmpty: '空碗',
-  /** 连击达到 3 连时冒出 */
+  /** 连击达到门槛（见 balance 的 COMBO_SHOUT_AT）时冒出 */
   comboShout: '够劲！',
+  /** 出餐得分飘字的前缀，后面直接拼核心给出的本单得分 */
+  scoreFloatPrefix: '+',
+  /** 订单卡上"已在碗里"的打勾标记 */
+  orderCheckMark: '✓',
   /** 错放时在计时处飘出 */
   misdropText: '-3 秒',
 

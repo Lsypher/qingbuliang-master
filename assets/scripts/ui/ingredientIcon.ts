@@ -1,5 +1,6 @@
 import { Color, Node, resources, Sprite, SpriteFrame } from 'cc';
-import { createUiNode } from './uiFactory';
+import { STRINGS } from '../config/strings';
+import { createOutlinedText, createUiNode, UI_COLOR } from './uiFactory';
 
 /**
  * 配料图标目录：12 张 Fluent Emoji 3D PNG，文件名即配料 id。
@@ -21,6 +22,12 @@ const INGREDIENT_TINT: ReadonlyMap<string, Color> = new Map([
 export function ingredientTint(id: string): Color | null {
   return INGREDIENT_TINT.get(id) ?? null;
 }
+
+/**
+ * "已在碗里"的图标压暗到这个不透明度：还能认出是什么，但明显退到背景里去。
+ * 只压暗精灵本体（改 Sprite 的 alpha），打勾标记是子节点、不受影响，勾始终是亮的。
+ */
+const CHECKED_ALPHA = 110;
 
 /**
  * 异步取某配料的图标 SpriteFrame；路径固定为 `${INGREDIENT_DIR}/${id}/spriteFrame`。
@@ -60,8 +67,17 @@ export function createIngredientIcon(parent: Node, id: string, size: number, nam
 /**
  * 在容器里把一批配料横排成图标行：先清掉上一帧的图标（Icon_ 前缀，避免误删别的子节点），
  * 再按需新建。碗里与订单卡共用本函数，保证两处是同一套图标、同一套排布逻辑。
+ *
+ * 传了 `checkedIds` 就把命中的项画成"已放入碗中"（变暗 + 打勾）——只有订单卡会传，
+ * 碗里的图标本来就是"已放入"，不需要再标一次。
  */
-export function renderIconRow(container: Node, ids: readonly string[], iconSize: number, gap: number): void {
+export function renderIconRow(
+  container: Node,
+  ids: readonly string[],
+  iconSize: number,
+  gap: number,
+  checkedIds?: ReadonlySet<string>,
+): void {
   for (const child of [...container.children]) {
     if (child.name.startsWith('Icon_')) child.destroy();
   }
@@ -73,5 +89,24 @@ export function renderIconRow(container: Node, ids: readonly string[], iconSize:
   ids.forEach((id, index) => {
     const icon = createIngredientIcon(container, id, iconSize, `Icon_${id}_${index}`);
     icon.setPosition(startX + index * step, 0, 0);
+    if (checkedIds?.has(id)) markChecked(icon, iconSize);
   });
+}
+
+/** 标出"已在碗里"：图标压暗，右上角盖一个亮绿勾，还差哪几项一眼可见 */
+function markChecked(icon: Node, iconSize: number): void {
+  const sprite = icon.getComponent(Sprite);
+  if (sprite) sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, CHECKED_ALPHA);
+
+  const check = createOutlinedText(
+    icon,
+    'OrderCheck',
+    STRINGS.orderCheckMark,
+    Math.round(iconSize * 0.5),
+    UI_COLOR.orderCheck,
+    UI_COLOR.orderCheckShadow,
+    iconSize,
+  );
+  // 落在图标右上角：勾只占角上一小块，不挡住配料本身
+  check.setPosition(iconSize * 0.28, iconSize * 0.28, 0);
 }

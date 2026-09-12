@@ -13,7 +13,7 @@ const ORDER_ICON_GAP = 8;
 
 /**
  * 订单卡：显示当前顾客要的那一碗，以及已经放进去几项。
- * 只订阅渲染事件重绘；"还差哪几项打勾变暗"留给 10 切片。
+ * 只订阅渲染事件重绘；已放入碗中的项在图标行里打勾变暗，剩下的保持原样。
  *
  * 三行内容整体压在下半区：顶部那条留给 04 切片的倒计时（数字 + 进度条）与分数行。
  */
@@ -44,7 +44,8 @@ export class OrderCard extends Component {
 
     const requiredIds = [order.baseId, ...order.toppingIds];
     if (this.orderIcons) {
-      renderIconRow(this.orderIcons, requiredIds, ORDER_ICON_SIZE, ORDER_ICON_GAP);
+      // 已放进碗里的项打勾变暗，剩下的保持原样——"还差什么"不用另开面板
+      renderIconRow(this.orderIcons, requiredIds, ORDER_ICON_SIZE, ORDER_ICON_GAP, new Set(bowlIds));
     }
     if (this.progressLabel) {
       this.progressLabel.string = `${STRINGS.placedLabel} ${bowlIds.length} / ${requiredIds.length}`;

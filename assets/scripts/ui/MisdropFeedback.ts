@@ -1,10 +1,10 @@
-import { _decorator, Component, Graphics, Label, Node, UITransform, UIOpacity, Vec3, tween } from 'cc';
+import { _decorator, Component, Graphics, Label, Node, UIOpacity, Vec3, tween } from 'cc';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import type { MisdropPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
-import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import { createLabel, createOutlinedText, createUiNode, floatAway, paintPanel, toLocalPoint, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
 
@@ -84,49 +84,24 @@ export class MisdropFeedback extends Component {
   private floatPenalty(): void {
     const countdown = findNodeByName(this.node, 'CountdownLabel');
     const baseWorld = countdown ? countdown.worldPosition : new Vec3(0, 604, 0);
-    const local = this.toLocal(baseWorld.x + COUNTDOWN_FLOAT_OFFSET_X, baseWorld.y);
+    const local = toLocalPoint(this.node, baseWorld.x + COUNTDOWN_FLOAT_OFFSET_X, baseWorld.y);
 
-    // 暗色描边垫在底下（略偏移），亮红字盖在上面——不依赖引擎描边 API 也能清晰可辨
-    const shadow = createLabel(
-      this.node,
-      'MisdropFloatShadow',
-      STRINGS.misdropText,
-      local.y - 3,
-      COUNTDOWN_FLOAT_FONT,
-      UI_COLOR.misdropShadow,
-      240,
-      local.x + 3,
-    );
-    const label = createLabel(
+    const float = createOutlinedText(
       this.node,
       'MisdropFloat',
       STRINGS.misdropText,
-      local.y,
       COUNTDOWN_FLOAT_FONT,
       UI_COLOR.misdropText,
+      UI_COLOR.misdropShadow,
       240,
-      local.x,
     );
-
-    this.riseAndFade(label.node);
-    this.riseAndFade(shadow.node);
-  }
-
-  /** 上飘 + 淡出，结束后销毁节点 */
-  private riseAndFade(node: Node): void {
-    const opacity = node.getComponent(UIOpacity) ?? node.addComponent(UIOpacity);
-    opacity.opacity = 255;
-    const startY = node.position.y;
-    tween(node)
-      .to(FLOAT_DURATION, { position: new Vec3(node.position.x, startY + FLOAT_RISE, 0) }, { easing: 'quadOut' })
-      .call(() => node.destroy())
-      .start();
-    tween(opacity).to(FLOAT_DURATION, { opacity: 0 }, { easing: 'quadOut' }).start();
+    float.setPosition(local.x, local.y, 0);
+    floatAway(float, { duration: FLOAT_DURATION, rise: FLOAT_RISE });
   }
 
   /** 弹回：在落点生成一份配料幽灵，飞回配料盘，呼应"配料弹回配料盘" */
   private bounceBack(payload: MisdropPayload): void {
-    const start = this.toLocal(payload.x, payload.y);
+    const start = toLocalPoint(this.node, payload.x, payload.y);
     const ghost = createUiNode(this.node, 'MisdropBounce', BOUNCE_GHOST_WIDTH, BOUNCE_GHOST_HEIGHT);
     paintPanel(ghost, UI_COLOR.panel, UI_COLOR.misdropText);
     createLabel(ghost, 'Name', ingredientName(payload.ingredientId), 0, 26, UI_COLOR.textPrimary, BOUNCE_GHOST_WIDTH - 12);
@@ -134,17 +109,11 @@ export class MisdropFeedback extends Component {
 
     // 终点取配料盘世界坐标（找不到就退回落点正下方），转回本节点局部坐标再补间
     const trayWorld = this.trayNode ? this.trayNode.worldPosition : new Vec3(payload.x, payload.y - 320, 0);
-    const target = this.toLocal(trayWorld.x, trayWorld.y);
+    const target = toLocalPoint(this.node, trayWorld.x, trayWorld.y);
     tween(ghost)
       .to(BOUNCE_DURATION, { position: new Vec3(target.x, target.y, 0) }, { easing: 'quadIn' })
       .call(() => ghost.destroy())
       .start();
-  }
-
-  /** 世界坐标 → 本节点（单局页）局部坐标：落点与配料盘坐标都来自世界系，统一换算避免偏移 */
-  private toLocal(x: number, y: number): Vec3 {
-    const transform = this.node.getComponent(UITransform);
-    return transform ? transform.convertToNodeSpaceAR(new Vec3(x, y, 0)) : new Vec3(x, y, 0);
   }
 }
 
