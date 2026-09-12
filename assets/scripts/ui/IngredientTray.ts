@@ -1,6 +1,7 @@
 import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3 } from 'cc';
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
+import { createIngredientIcon } from './ingredientIcon';
 import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -68,9 +69,13 @@ export class IngredientTray extends Component {
       const slot = createUiNode(this.node, `Slot_${ingredient.id}`, SLOT_WIDTH, SLOT_HEIGHT, y, x);
       paintPanel(slot, UI_COLOR.panel, UI_COLOR.panelBorder);
 
+      // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）
+      // 图标上移，避免和大字号标签在格子内重叠
+      const slotIcon = createIngredientIcon(slot, ingredient.id, 52, 'Icon');
+      slotIcon.setPosition(0, 16, 0);
       // 汤底与小料用不同字色区分，避免一眼看混两类
       const labelColor = ingredient.category === 'base' ? UI_COLOR.textAccent : UI_COLOR.textPrimary;
-      createLabel(slot, 'Name', ingredient.name, 0, 26, labelColor, SLOT_WIDTH - 16);
+      createLabel(slot, 'Name', ingredient.name, -28, 18, labelColor, SLOT_WIDTH - 8);
 
       const button = slot.addComponent(Button);
       button.transition = Button.Transition.NONE;
@@ -178,7 +183,10 @@ export class IngredientTray extends Component {
     const ghost = createUiNode(parent, 'DragGhost', GHOST_WIDTH, GHOST_HEIGHT);
     // 描边用强调色，跟托盘里的静态格子区分开，一眼能看出"手里拿着东西"
     paintPanel(ghost, UI_COLOR.panel, UI_COLOR.textAccent);
-    createLabel(ghost, 'Name', ingredient ? ingredient.name : ingredientId, 0, 26, UI_COLOR.textPrimary, GHOST_WIDTH - 12);
+    // 跟手幽灵也带上图标 + 名称，和托盘里的格子保持同一套视觉语言
+    const ghostIcon = createIngredientIcon(ghost, ingredientId, 36, 'Icon');
+    ghostIcon.setPosition(0, 12, 0);
+    createLabel(ghost, 'Name', ingredient ? ingredient.name : ingredientId, -16, 18, UI_COLOR.textPrimary, GHOST_WIDTH - 12);
 
     // 起手落在源格子中心：取格子世界坐标，换算成幽灵父节点的局部坐标
     const transform = parent.getComponent(UITransform);

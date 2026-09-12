@@ -1,11 +1,15 @@
-import { _decorator, Component, Label } from 'cc';
-import { ingredientName } from '../config/ingredients';
+import { _decorator, Component, Label, Node } from 'cc';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
-import { createLabel, UI_COLOR } from './uiFactory';
+import { renderIconRow } from './ingredientIcon';
+import { createLabel, createUiNode, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
+
+/** 订单卡里"顾客要的配料"图标行：最多 6 项（1 汤底 + 5 小料），横排不挤 */
+const ORDER_ICON_SIZE = 52;
+const ORDER_ICON_GAP = 8;
 
 /**
  * 订单卡：显示当前顾客要的那一碗，以及已经放进去几项。
@@ -15,13 +19,15 @@ const { ccclass } = _decorator;
  */
 @ccclass('OrderCard')
 export class OrderCard extends Component {
-  private orderLabel: Label | null = null;
+  private orderIcons: Node | null = null;
   private progressLabel: Label | null = null;
   private lastSignature: string | null = null;
 
   protected onLoad(): void {
     createLabel(this.node, 'CardTitle', STRINGS.orderTitle, 45, 30, UI_COLOR.textMuted);
-    this.orderLabel = createLabel(this.node, 'OrderLine', '', -55, 40, UI_COLOR.textAccent);
+    // 顾客要的配料用图标行展示，与托盘、碗里同一套图标
+    this.orderIcons = createUiNode(this.node, 'OrderIcons', 660, ORDER_ICON_SIZE + 8);
+    this.orderIcons.setPosition(0, -55, 0);
     this.progressLabel = createLabel(this.node, 'ProgressLine', '', -155, 26, UI_COLOR.textMuted);
     bus.on(BusEvent.Render, this.onRender, this);
   }
@@ -37,7 +43,9 @@ export class OrderCard extends Component {
     this.lastSignature = signature;
 
     const requiredIds = [order.baseId, ...order.toppingIds];
-    if (this.orderLabel) this.orderLabel.string = requiredIds.map(ingredientName).join(' + ');
+    if (this.orderIcons) {
+      renderIconRow(this.orderIcons, requiredIds, ORDER_ICON_SIZE, ORDER_ICON_GAP);
+    }
     if (this.progressLabel) {
       this.progressLabel.string = `${STRINGS.placedLabel} ${bowlIds.length} / ${requiredIds.length}`;
     }

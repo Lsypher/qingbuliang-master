@@ -1,0 +1,138 @@
+﻿{
+    "userData":  {
+                     "hasAlpha":  true,
+                     "fixAlphaTransparencyArtifacts":  true,
+                     "redirect":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a@6c48a",
+                     "type":  "sprite-frame"
+                 },
+    "uuid":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a",
+    "files":  [
+                  ".png",
+                  ".json"
+              ],
+    "ver":  "1.0.27",
+    "importer":  "image",
+    "subMetas":  {
+                     "f9941":  {
+                                   "id":  "f9941",
+                                   "imported":  true,
+                                   "importer":  "sprite-frame",
+                                   "name":  "spriteFrame",
+                                   "files":  [
+                                                 ".json"
+                                             ],
+                                   "ver":  "1.0.12",
+                                   "userData":  {
+                                                    "borderLeft":  0,
+                                                    "trimY":  0,
+                                                    "vertices":  {
+                                                                     "minPos":  [
+                                                                                    -128,
+                                                                                    -128,
+                                                                                    0
+                                                                                ],
+                                                                     "uv":  [
+                                                                                0,
+                                                                                256,
+                                                                                256,
+                                                                                256,
+                                                                                0,
+                                                                                0,
+                                                                                256,
+                                                                                0
+                                                                            ],
+                                                                     "indexes":  [
+                                                                                     0,
+                                                                                     1,
+                                                                                     2,
+                                                                                     2,
+                                                                                     1,
+                                                                                     3
+                                                                                 ],
+                                                                     "nuv":  [
+                                                                                 0,
+                                                                                 0,
+                                                                                 1,
+                                                                                 0,
+                                                                                 0,
+                                                                                 1,
+                                                                                 1,
+                                                                                 1
+                                                                             ],
+                                                                     "maxPos":  [
+                                                                                    128,
+                                                                                    128,
+                                                                                    0
+                                                                                ],
+                                                                     "rawPosition":  [
+                                                                                         -128,
+                                                                                         -128,
+                                                                                         0,
+                                                                                         128,
+                                                                                         -128,
+                                                                                         0,
+                                                                                         -128,
+                                                                                         128,
+                                                                                         0,
+                                                                                         128,
+                                                                                         128,
+                                                                                         0
+                                                                                     ]
+                                                                 },
+                                                    "offsetY":  0,
+                                                    "isUuid":  true,
+                                                    "rotated":  false,
+                                                    "trimX":  0,
+                                                    "borderTop":  0,
+                                                    "pivotX":  0.5,
+                                                    "trimThreshold":  1,
+                                                    "pixelsToUnit":  100,
+                                                    "borderBottom":  0,
+                                                    "pivotY":  0.5,
+                                                    "rawWidth":  256,
+                                                    "trimType":  "auto",
+                                                    "packable":  true,
+                                                    "imageUuidOrDatabaseUri":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a@6c48a",
+                                                    "height":  256,
+                                                    "meshType":  0,
+                                                    "rawHeight":  256,
+                                                    "borderRight":  0,
+                                                    "atlasUuid":  "",
+                                                    "width":  256,
+                                                    "offsetX":  0
+                                                },
+                                   "uuid":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a@f9941",
+                                   "subMetas":  {
+
+                                                },
+                                   "displayName":  "coconut_milk"
+                               },
+                     "6c48a":  {
+                                   "id":  "6c48a",
+                                   "imported":  true,
+                                   "importer":  "texture",
+                                   "name":  "texture",
+                                   "files":  [
+                                                 ".json"
+                                             ],
+                                   "ver":  "1.0.22",
+                                   "userData":  {
+                                                    "magfilter":  "linear",
+                                                    "imageUuidOrDatabaseUri":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a",
+                                                    "minfilter":  "linear",
+                                                    "isUuid":  true,
+                                                    "mipfilter":  "none",
+                                                    "visible":  false,
+                                                    "wrapModeS":  "clamp-to-edge",
+                                                    "anisotropy":  0,
+                                                    "wrapModeT":  "clamp-to-edge"
+                                                },
+                                   "uuid":  "81fb9d2c-0a53-4c1c-865c-7cdb8d20701a@6c48a",
+                                   "subMetas":  {
+
+                                                },
+                                   "displayName":  "coconut_milk"
+                               }
+                 },
+    "imported":  true
+}

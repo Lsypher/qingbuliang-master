@@ -1,7 +1,7 @@
 import { _decorator, Button, Component, Label, Node, Sprite, UITransform, Vec3, director } from 'cc';
 import { DIFFICULTY_STAGES, ROUND_DURATION_MS } from '../config/balance';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
-import { ALL_INGREDIENTS } from '../config/ingredients';
+import { ALL_INGREDIENTS, ingredientName } from '../config/ingredients';
 import { readBestScore } from '../game/bestScore';
 import { BusEvent, bus } from '../game/bus';
 
@@ -86,11 +86,12 @@ export class SelfCheck extends Component {
     this.check('点开摊后进入单局页', gamePage.active);
     this.check('开始页已隐藏', findNode(canvas, 'StartPage')?.active === false);
 
-    const orderLabel = findLabel(gamePage, 'OrderLine');
+    // 订单卡改用图标行展示，节点名形如 Icon_<id>_<index>；自检从图标行读回所需配料
+    const orderIconsNode = findNode(gamePage, 'OrderIcons');
     const bowlLabel = findLabel(gamePage, 'BowlItems');
 
     // ② 订单是否渲染成"1 汤底 + 3 小料"
-    const requiredNames = splitOrder(orderLabel?.string ?? '');
+    const requiredNames = orderRequiredNames(orderIconsNode);
     this.check('订单渲染为 1 汤底 + 3 小料', requiredNames.length === 4, requiredNames.join('|'));
     this.check('碗初始为空碗', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
 
@@ -137,7 +138,7 @@ export class SelfCheck extends Component {
     this.check('完成订单数变为 1', hudText(gamePage).includes('完成订单 1'), hudText(gamePage));
     this.check('分数已增长', !hudText(gamePage).includes('分数 0'), hudText(gamePage));
 
-    const nextOrderNames = splitOrder(orderLabel?.string ?? '');
+    const nextOrderNames = orderRequiredNames(orderIconsNode);
     this.check('已换下一位顾客（订单变化）', nextOrderNames.join('|') !== requiredNames.join('|'));
 
     // ⑥ 错放：点一个不在订单里的配料，碗必须仍是空的；连击清零、红闪出现、倒计时扣 3 秒
@@ -201,9 +202,9 @@ export class SelfCheck extends Component {
     // ⑦ 难度换档：越过配置里的分段点之后，新订单的小料数按曲线走
     // （断言名沿用验收里的"20 秒 / 40 秒"，期望值则从曲线算，改数值配置不会被写死的期望卡住）
     session?.update(DIFFICULTY_STAGES[0].untilMs / 1000 + 1);
-    await this.serveOrder(tray, splitOrder(orderLabel?.string ?? ''));
+    await this.serveOrder(tray, orderRequiredNames(orderIconsNode));
     await wait(700);
-    const stage2Names = splitOrder(orderLabel?.string ?? '');
+    const stage2Names = orderRequiredNames(orderIconsNode);
     this.check(
       '20 秒后新订单要 4 种小料',
       stage2Names.length === DIFFICULTY_STAGES[1].toppingCount + 1,
@@ -213,7 +214,7 @@ export class SelfCheck extends Component {
     session?.update((DIFFICULTY_STAGES[1].untilMs - DIFFICULTY_STAGES[0].untilMs) / 1000 + 1);
     await this.serveOrder(tray, stage2Names);
     await wait(700);
-    const stage3Names = splitOrder(orderLabel?.string ?? '');
+    const stage3Names = orderRequiredNames(orderIconsNode);
     this.check(
       '40 秒后新订单要 5 种小料',
       stage3Names.length === DIFFICULTY_STAGES[2].toppingCount + 1,
@@ -271,7 +272,7 @@ export class SelfCheck extends Component {
     );
     this.check('重开后倒计时回到 60', countdownSeconds(gamePage) === 60, countdownText(gamePage));
     this.check('重开后碗是空的', (bowlLabel?.string ?? '') === '空碗', bowlLabel?.string ?? '');
-    const freshOrder = splitOrder(orderLabel?.string ?? '');
+    const freshOrder = orderRequiredNames(orderIconsNode);
     this.check('重开后是新的 1 汤底 + 3 小料订单', freshOrder.length === 4, freshOrder.join('|'));
 
     // ⑩′ 背景每局重抽：连进 8 次单局，看抽到几张不同的（背景是异步加载，每次让出一小段时间）
@@ -388,12 +389,16 @@ function emitClick(node: Node | null): void {
   node.emit(Button.EventType.CLICK);
 }
 
-/** 把"椰奶 + 西瓜丁 + 芋圆 + 红豆"拆成名字数组 */
-function splitOrder(text: string): string[] {
-  return text
-    .split('+')
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
+/** 从订单卡图标行（节点名 Icon_<id>_<index>）读出所需配料的中文名数组 */
+function orderRequiredNames(orderIcons: Node | null): string[] {
+  if (!orderIcons) return [];
+  return orderIcons.children
+    .filter((child) => child.name.startsWith('Icon_'))
+    .map((child) => {
+      const matched = /^Icon_(.+?)_\d+$/.exec(child.name);
+      return matched ? ingredientName(matched[1]) : '';
+    })
+    .filter((name) => name.length > 0);
 }
 
 /** 配料盘的格子：中文名与节点成对取出，按名字找与找"订单外的那个"都基于它 */

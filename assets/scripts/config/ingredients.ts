@@ -30,8 +30,8 @@ export const BASE_POOL: readonly IngredientDef[] = [
  * 选型原则是"颜色 + 形状两两不撞脸"，所以真正的海南配料里略掉了芋头块（撞芋圆）等项。
  */
 export const TOPPING_POOL: readonly IngredientDef[] = [
-  { id: 'red_bean', name: '红豆', category: 'topping', emojiAsset: 'Beans' },
-  { id: 'mung_bean', name: '绿豆', category: 'topping', emojiAsset: 'Beans', iconNote: '与红豆同一图标，需换成绿色' },
+  { id: 'red_bean', name: '红豆', category: 'topping', emojiAsset: 'Beans', iconNote: '与绿豆共用 Beans 图标，靠暖红染色 + 标签区分' },
+  { id: 'mung_bean', name: '绿豆', category: 'topping', emojiAsset: 'Beans', iconNote: '与红豆共用 Beans 图标，已染绿区分' },
   { id: 'sago', name: '西米', category: 'topping', emojiAsset: 'Cooked rice', iconNote: '近似白米粒' },
   { id: 'taro_ball', name: '芋圆', category: 'topping', emojiAsset: 'Dango' },
   { id: 'watermelon', name: '西瓜丁', category: 'topping', emojiAsset: 'Watermelon' },

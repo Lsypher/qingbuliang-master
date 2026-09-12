@@ -1,10 +1,14 @@
 import { _decorator, Component, Label, Node } from 'cc';
-import { ingredientName } from '../config/ingredients';
 import { BOWL_DROP_ZONE_HEIGHT, BOWL_DROP_ZONE_WIDTH } from '../config/layout';
 import { STRINGS } from '../config/strings';
 import type { DragOverBowlPayload, RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
+import { renderIconRow } from './ingredientIcon';
 import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+
+/** 碗里图标大小与间距：碗区宽 600，最多 6 项，横排不挤 */
+const BOWL_ICON_SIZE = 64;
+const BOWL_ICON_GAP = 12;
 
 const { ccclass } = _decorator;
 
@@ -16,6 +20,7 @@ const { ccclass } = _decorator;
 @ccclass('BowlView')
 export class BowlView extends Component {
   private itemsLabel: Label | null = null;
+  private iconRow: Node | null = null;
   private highlightNode: Node | null = null;
   /** 用 null 而不是空串作"还没画过"的哨兵：空碗的签名恰好就是空串，否则首帧会被短路 */
   private lastSignature: string | null = null;
@@ -27,7 +32,10 @@ export class BowlView extends Component {
     this.highlightNode.active = false;
 
     createLabel(this.node, 'BowlTitle', STRINGS.bowlTitle, 180, 30, UI_COLOR.textMuted);
-    this.itemsLabel = createLabel(this.node, 'BowlItems', '', 0, 34, UI_COLOR.textPrimary);
+    // 空碗时显示提示文字；有料时隐藏，改由图标行展示（图标与托盘同一套）
+    this.itemsLabel = createLabel(this.node, 'BowlItems', '', 10, 34, UI_COLOR.textPrimary);
+    this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_DROP_ZONE_WIDTH - 40, BOWL_ICON_SIZE);
+    this.iconRow.setPosition(0, 10, 0);
     bus.on(BusEvent.Render, this.onRender, this);
     bus.on(BusEvent.DragOverBowl, this.onDragOverBowl, this);
   }
@@ -55,7 +63,15 @@ export class BowlView extends Component {
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
 
-    if (!this.itemsLabel) return;
-    this.itemsLabel.string = bowlIds.length === 0 ? STRINGS.bowlEmpty : bowlIds.map(ingredientName).join('、');
+    const empty = bowlIds.length === 0;
+    // 空碗只显示提示文字；有料时收起文字、用图标行代替（与托盘同一套图标）
+    if (this.itemsLabel) {
+      this.itemsLabel.node.active = empty;
+      this.itemsLabel.string = empty ? STRINGS.bowlEmpty : '';
+    }
+    if (this.iconRow) {
+      this.iconRow.active = !empty;
+      if (!empty) renderIconRow(this.iconRow, bowlIds, BOWL_ICON_SIZE, BOWL_ICON_GAP);
+    }
   }
 }
