@@ -80,8 +80,8 @@ export class IngredientTray extends Component {
       // 拖拽手势与点按并存：挪动超过阈值按拖动走，否则仍交给 Button 的 click
       slot.on(Node.EventType.TOUCH_START, (event: EventTouch) => this.onSlotTouchStart(ingredientId, event), this);
       slot.on(Node.EventType.TOUCH_MOVE, (event: EventTouch) => this.onSlotTouchMove(event), this);
-      slot.on(Node.EventType.TOUCH_END, (event: EventTouch) => this.onSlotTouchEnd(event), this);
-      slot.on(Node.EventType.TOUCH_CANCEL, (event: EventTouch) => this.onSlotTouchCancel(event), this);
+      slot.on(Node.EventType.TOUCH_END, (event: EventTouch) => this.onSlotTouchFinished(event), this);
+      slot.on(Node.EventType.TOUCH_CANCEL, (event: EventTouch) => this.onSlotTouchFinished(event), this);
 
       this.slotNodes.set(ingredientId, slot);
     });
@@ -134,7 +134,14 @@ export class IngredientTray extends Component {
     }
   }
 
-  private onSlotTouchEnd(event: EventTouch): void {
+  /**
+   * 松手收尾：TOUCH_END 与 TOUCH_CANCEL 走同一条路。
+   * 引擎的触摸是"认领"模型——move/end/cancel 都派回 TOUCH_START 认领事件的格子；
+   * 关键在抬起那一刻引擎会对格子再做一次命中测试：手指还在格子上才派 END，
+   * 拖出格子后松手派的是 CANCEL。而"拖出去松手"正是拖拽的常态，不是异常，
+   * 所以两条路都必须做落点判定，否则拖到碗上松手永远无效（点按不受影响）。
+   */
+  private onSlotTouchFinished(event: EventTouch): void {
     const drag = this.activeDrag;
     if (!drag || event.getID() !== drag.touchId) return;
 
@@ -144,14 +151,6 @@ export class IngredientTray extends Component {
       bus.emit(BusEvent.DragEnded, { ingredientId: drag.ingredientId, x: world.x, y: world.y });
     }
     // 没挪动过的就是点按：Button 的 click 路径已经在别处上报，这里只管收尾
-    this.endDrag();
-  }
-
-  private onSlotTouchCancel(event: EventTouch): void {
-    const drag = this.activeDrag;
-    if (!drag || event.getID() !== drag.touchId) return;
-    // 被系统打断的拖动不做落点判定，安静收场即可
-    bus.emit(BusEvent.DragCanceled);
     this.endDrag();
   }
 
