@@ -50,7 +50,9 @@ export function createIngredientIcon(parent: Node, id: string, size: number, nam
   const tint = ingredientTint(id);
   if (tint) sprite.color = tint;
   loadIngredientFrame(id, (frame) => {
-    if (frame) sprite.spriteFrame = frame;
+    // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
+    // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
+    if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
   });
   return node;
 }

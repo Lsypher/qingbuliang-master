@@ -70,7 +70,8 @@ export class BackgroundView extends Component {
         return;
       }
       const sprite = this.imageNode?.getComponent(Sprite);
-      if (!sprite) return;
+      // 加载是异步的：期间背景层可能已被销毁，销毁后 sprite.node 置空，再赋 spriteFrame 会崩
+      if (!sprite || !sprite.isValid) return;
       const previous = sprite.spriteFrame;
       sprite.spriteFrame = frame;
       if (previous && previous !== frame) assetManager.releaseAsset(previous);
