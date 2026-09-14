@@ -13,6 +13,8 @@
 | `assets/resources/art/backgrounds/palm-coast-dusk.jpg` | 椰林海岸黄昏 | 同上 |
 | `assets/resources/art/backgrounds/li-brocade-pattern.png` | 黎锦纹样底纹 | 同上 |
 
+**待处理的素材问题（12 号切片上线验收时发现）**：4 张图右下角都带 **"豆包AI生成"** 水印；`palm-coast-dusk.jpg` 还不只是水印——它是一张手机截图，顶部带着手机状态栏（电量百分比 / 信号 / Wi-Fi / 电池图标），底部还有 home 指示条。单局页底部被配料盘盖住看不见，但**开始页与结算页压暗后两者都清晰可见**。处置待定：首选重出（去掉水印、不要拿手机截图当底图）；退一步可由脚本裁掉水印带（底部约 5%，`palm-coast-dusk` 还要连顶部约 3% 的状态栏一起裁）。
+
 压缩档位（约束：单张 ≤400 KB、合计 ≤1.6 MB）：
 
 | 文件 | 档位 | 体积 | 保真度（PSNR，相对缩放后原图） |

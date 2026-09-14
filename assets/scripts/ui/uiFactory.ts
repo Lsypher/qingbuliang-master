@@ -1,4 +1,5 @@
-import { Color, Graphics, Label, Layers, Node, UIOpacity, UITransform, Vec3, tween } from 'cc';
+import { Color, Graphics, Label, Layers, Node, UIOpacity, UITransform, Vec3, tween, view } from 'cc';
+import { SCREEN_WIDTH } from '../config/layout';
 
 /** 界面统一用色：改主题只改这里（08/09 切片会换成素材配色） */
 export const UI_COLOR = {
@@ -41,6 +42,18 @@ export const UI_COLOR = {
 
 /** 描边文字的垫底偏移（设计像素）：暗色垫底略往右下挪，亮色正文盖在上面 */
 const OUTLINE_OFFSET = 3;
+
+/**
+ * 当前屏幕能看见的设计宽度。
+ *
+ * FitHeight 下，比 9:16 更窄的屏幕（现代全面屏手机、拖窄的桌面窗口）只看得见比 720 更窄的一条，
+ * 横向排版都得按它收窄——配料盘分列、开始页那行长文案都用这个数，
+ * 别各自再写一遍 `Math.min(SCREEN_WIDTH, view.getVisibleSize().width)`。
+ * 可见宽度不小于设计宽度时返回设计宽度，宽屏因此完全不受影响。
+ */
+export function visibleWidth(): number {
+  return Math.min(SCREEN_WIDTH, view.getVisibleSize().width);
+}
 
 /** 建一个 UI 节点（自动挂 UITransform、设尺寸与层级） */
 export function createUiNode(parent: Node, name: string, width: number, height: number, y = 0, x = 0): Node {

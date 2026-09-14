@@ -53,7 +53,7 @@
 
 - 数据驱动：配料、难度曲线、计分规则、文案都写成 TS 配置，不写死在 UI 组件里
 - 单一状态持有者 `GameSession` + `EventTarget` 事件总线；UI 组件只订阅渲染；不引第三方框架
-- 目录：`assets/scripts/{config,core,game,ui,debug}`；美术资源放 `assets/resources/art/`（`backgrounds` / `ingredients`）——**必须放在 `resources` 下**才能按文件名动态加载：池子换图只换文件，代码与场景都不用动（08 切片的配料图标沿用同一约定）；音频 `assets/resources/audio/`（MVP 暂空）
+- 目录：`assets/scripts/{config,core,game,ui}`（开发期的 `debug/` 自检目录已按 spec 要求于 12 号切片上线构建前删除）；美术资源放 `assets/resources/art/`（`backgrounds` / `ingredients`）——**必须放在 `resources` 下**才能按文件名动态加载：池子换图只换文件，代码与场景都不用动（08 切片的配料图标沿用同一约定）；音频 `assets/resources/audio/`（MVP 暂空）
 - 最高分存 `sys.localStorage`；中文文案集中在 `strings.ts`；不引 i18n；字体用系统字体（不内嵌中文字体，控制包体）
 - 素材来源逐个登记到 `CREDITS.md`；背景由用户提供，未到位期间用程序化黎锦纹样占位
 - 代码标识符用英文，注释与文档用中文

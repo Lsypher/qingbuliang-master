@@ -104,7 +104,9 @@ export class HudView extends Component {
   private stopPulse(): void {
     this.pulseTween?.stop();
     this.pulseTween = null;
-    if (this.countdownLabel) this.countdownLabel.node.setScale(1, 1, 1);
+    // 组件销毁时子节点已被先一步回收（Label 还在、node 已是 null），这里不能直接碰它
+    const labelNode = this.countdownLabel?.node;
+    if (labelNode && labelNode.isValid) labelNode.setScale(1, 1, 1);
   }
 
   /** 倒计时：整秒向上取整（开局正好 60、归零正好 0），进度条取剩余比例 */

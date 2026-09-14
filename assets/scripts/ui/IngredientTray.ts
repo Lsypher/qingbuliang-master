@@ -1,8 +1,8 @@
-import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3 } from 'cc';
+import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3, view } from 'cc';
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
 import { createIngredientIcon } from './ingredientIcon';
-import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import { createLabel, createUiNode, paintPanel, UI_COLOR, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
 
@@ -12,8 +12,28 @@ const COLUMN_SPACING = 180;
 const ROW_SPACING = 118;
 const SLOT_WIDTH = 160;
 const SLOT_HEIGHT = 96;
+/** 相邻格子之间至少要留的间隙（设计像素）：窄屏收窄列距时靠它保证格子不贴在一起 */
+const COLUMN_GAP = 10;
+/** 配料盘左右两侧留白（设计像素） */
+const TRAY_SIDE_MARGIN = 16;
+/** 格子收窄的下限（设计像素）：再窄就认不出图标与中文标签了，宁可让屏幕边缘裁一点 */
+const MIN_SLOT_WIDTH = 110;
 /** 行数由配料总数推出，别在改配料表时忘了同步这里 */
 const ROW_COUNT = Math.ceil(ALL_INGREDIENTS.length / COLUMN_COUNT);
+
+/**
+ * 当前屏幕下的配料盘排版。
+ *
+ * 设计宽度是 720，但比 9:16 更窄的现代全面屏手机在 FitHeight 下只能看到约 590 设计像素宽，
+ * 四列固定 180 间距会把最外侧两列挤出屏幕（图标与中文标签都被切掉）。所以按实际可见宽度收窄：
+ * 宽屏（可见宽度 ≥720）与设计完全一致，窄屏四列均分可用宽度、格子同步缩小。
+ * 下限只是防止极端窄窗口把格子压到认不出，正常机型（可见宽 570~720）都用不到它。
+ */
+function trayLayout(): { spacing: number; slotWidth: number } {
+  const usable = Math.max(visibleWidth() - TRAY_SIDE_MARGIN * 2, COLUMN_COUNT * MIN_SLOT_WIDTH);
+  const spacing = Math.min(COLUMN_SPACING, usable / COLUMN_COUNT);
+  return { spacing, slotWidth: Math.min(SLOT_WIDTH, spacing - COLUMN_GAP) };
+}
 
 /** 手指挪动超过这个距离才算"拖动"，否则当作点按（Button 的 click 路径） */
 const DRAG_THRESHOLD_PX = 8;
@@ -45,12 +65,16 @@ export class IngredientTray extends Component {
 
   protected onLoad(): void {
     this.buildSlots();
+    // 可视区变了（手机转屏、浏览器工具栏收起、桌面窗口缩放）要按新的可见宽度重排：
+    // 格子尺寸是按可见宽度算的，只算一次的话，视口一变最外侧两列又会被裁出屏幕
+    view.on('canvas-resize', this.rebuildSlots, this);
   }
 
   protected onDestroy(): void {
+    view.off('canvas-resize', this.rebuildSlots, this);
     // 组件被拆时拖动还悬着的话，先把高亮熄掉、幽灵收掉，别把状态漏到下一局
     this.abandonDrag();
-    this.slotNodes.clear();
+    this.clearSlots();
   }
 
   protected onDisable(): void {
@@ -59,14 +83,15 @@ export class IngredientTray extends Component {
   }
 
   private buildSlots(): void {
+    const { spacing, slotWidth } = trayLayout();
     ALL_INGREDIENTS.forEach((ingredient, index) => {
       const column = index % COLUMN_COUNT;
       const row = Math.floor(index / COLUMN_COUNT);
-      const x = (column - (COLUMN_COUNT - 1) / 2) * COLUMN_SPACING;
+      const x = (column - (COLUMN_COUNT - 1) / 2) * spacing;
       // 三行以托盘中心为基准上下对称排开：正着数第三行会探出面板、掉到屏幕外
       const y = ((ROW_COUNT - 1) / 2 - row) * ROW_SPACING;
 
-      const slot = createUiNode(this.node, `Slot_${ingredient.id}`, SLOT_WIDTH, SLOT_HEIGHT, y, x);
+      const slot = createUiNode(this.node, `Slot_${ingredient.id}`, slotWidth, SLOT_HEIGHT, y, x);
       paintPanel(slot, UI_COLOR.panel, UI_COLOR.panelBorder);
 
       // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）
@@ -75,7 +100,7 @@ export class IngredientTray extends Component {
       slotIcon.setPosition(0, 16, 0);
       // 汤底与小料用不同字色区分，避免一眼看混两类
       const labelColor = ingredient.category === 'base' ? UI_COLOR.textAccent : UI_COLOR.textPrimary;
-      createLabel(slot, 'Name', ingredient.name, -28, 18, labelColor, SLOT_WIDTH - 8);
+      createLabel(slot, 'Name', ingredient.name, -28, 18, labelColor, slotWidth - 8);
 
       const button = slot.addComponent(Button);
       button.transition = Button.Transition.NONE;
@@ -90,6 +115,18 @@ export class IngredientTray extends Component {
 
       this.slotNodes.set(ingredientId, slot);
     });
+  }
+
+  /** 按当前可见宽度重排：拆掉旧格子再重建；正在拖动就先按"被打断"收尾，别让幽灵跟着旧格子走 */
+  private rebuildSlots(): void {
+    this.abandonDrag();
+    this.clearSlots();
+    this.buildSlots();
+  }
+
+  private clearSlots(): void {
+    for (const slot of this.slotNodes.values()) slot.destroy();
+    this.slotNodes.clear();
   }
 
   private onSlotClicked(ingredientId: string): void {
