@@ -1,11 +1,11 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, assetManager, resources } from 'cc';
+import { _decorator, Component, Node, Sprite, assetManager } from 'cc';
 import { BACKGROUND_DIR, BACKGROUNDS } from '../config/backgrounds';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import type { RandomSource } from '../core/random';
 import { createRandom, pickOne } from '../core/random';
 import type { ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
-import { createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import { createUiNode, loadSpriteFrame, paintPanel, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
 
@@ -64,8 +64,9 @@ export class BackgroundView extends Component {
    * 新图到手之前保留旧图，避免闪一下空白；到手之后再把旧图放掉。
    */
   private showAt(path: string): void {
-    resources.load(`${path}/spriteFrame`, SpriteFrame, (error, frame) => {
-      if (error) {
+    loadSpriteFrame(path, (frame, error) => {
+      if (!frame) {
+        // 没拿到新图就继续用当前这张，避免闪一下空白
         console.warn('[BackgroundView] 背景加载失败，继续用当前这张', path, error);
         return;
       }

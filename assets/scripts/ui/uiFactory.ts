@@ -1,4 +1,4 @@
-import { Color, Graphics, Label, Layers, Node, UIOpacity, UITransform, Vec3, tween, view } from 'cc';
+import { Color, Graphics, Label, Layers, Node, SpriteFrame, UIOpacity, UITransform, Vec3, resources, tween, view } from 'cc';
 import { SCREEN_WIDTH } from '../config/layout';
 
 /** 界面统一用色：改主题只改这里（08/09 切片会换成素材配色） */
@@ -67,20 +67,57 @@ export function createUiNode(parent: Node, name: string, width: number, height: 
   return node;
 }
 
+/**
+ * 按文件名加载一张界面图片，是仓库里唯一一处"按文件名取图"的实现。
+ *
+ * 界面图片都放在 `assets/resources/` 下，以 `<目录>/<文件名>` 定位（路径拼法在这里收口：
+ * `${path}/spriteFrame`）；换图只要同名覆盖文件，不用改代码、也不用回编辑器接线。
+ * 背景图、配料图标与新加的界面美术都走它，免得各写一份、各自漂移。
+ *
+ * 加载失败时回调 `frame` 为 null（并原样带回 `error`），由调用方决定兜底：
+ * 背景层保留旧图、配料图标跳过这一格。Cocos 按 uuid 缓存已加载资源，重复调用不会重复读盘。
+ */
+export function loadSpriteFrame(path: string, onLoad: (frame: SpriteFrame | null, error: Error | null) => void): void {
+  resources.load(`${path}/spriteFrame`, SpriteFrame, (error, frame) => {
+    onLoad(frame ?? null, error ?? null);
+  });
+}
+
 /** 在节点上画一块纯色面板，可带描边；重复调用会重画（换色、改尺寸都用它） */
 export function paintPanel(node: Node, fill: Color, border?: Color): Graphics {
+  return drawPanel(node, fill, 0, border);
+}
+
+/**
+ * 在节点上画一块圆角面板：圆角半径可配、可带描边，与纯色面板共用同一块画板。
+ * 尺寸同样取节点自身的 UITransform，重复调用会重画；半径传 0 就退化成纯色面板。
+ */
+export function paintRoundPanel(node: Node, fill: Color, radius: number, border?: Color): Graphics {
+  return drawPanel(node, fill, radius, border);
+}
+
+/** 两种面板的共同实现：`radius` 为 0 画直角矩形，否则四角改圆 */
+function drawPanel(node: Node, fill: Color, radius: number, border?: Color): Graphics {
   const transform = node.getComponent(UITransform);
   const width = transform ? transform.width : 0;
   const height = transform ? transform.height : 0;
   const graphics = node.getComponent(Graphics) ?? node.addComponent(Graphics);
+  const left = -width / 2;
+  const bottom = -height / 2;
+  // 圆角与直角走两条路径：半径 0 时保持原来的 rect 绘制，外观与用法都不变
+  const path = (): void => {
+    if (radius > 0) graphics.roundRect(left, bottom, width, height, radius);
+    else graphics.rect(left, bottom, width, height);
+  };
+
   graphics.clear();
   graphics.fillColor = fill;
-  graphics.rect(-width / 2, -height / 2, width, height);
+  path();
   graphics.fill();
   if (border) {
     graphics.lineWidth = 2;
     graphics.strokeColor = border;
-    graphics.rect(-width / 2, -height / 2, width, height);
+    path();
     graphics.stroke();
   }
   return graphics;

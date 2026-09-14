@@ -1,6 +1,6 @@
-import { Color, Node, resources, Sprite, SpriteFrame } from 'cc';
+import { Color, Node, Sprite, SpriteFrame } from 'cc';
 import { STRINGS } from '../config/strings';
-import { createOutlinedText, createUiNode, UI_COLOR } from './uiFactory';
+import { createOutlinedText, createUiNode, loadSpriteFrame, UI_COLOR } from './uiFactory';
 
 /**
  * 配料图标目录：12 张 Fluent Emoji 3D PNG，文件名即配料 id。
@@ -30,13 +30,13 @@ export function ingredientTint(id: string): Color | null {
 const CHECKED_ALPHA = 110;
 
 /**
- * 异步取某配料的图标 SpriteFrame；路径固定为 `${INGREDIENT_DIR}/${id}/spriteFrame`。
+ * 异步取某配料的图标 SpriteFrame；路径固定为 `${INGREDIENT_DIR}/${id}`。
  * 加载失败回调 null，由调用方决定是否兜底（目前托盘/碗/订单卡都只显示标签，不致命）。
- * Cocos 按 uuid 缓存已加载资源，重复调用同一 id 不会重复读盘。
+ * 取图本身走界面统一的加载入口，这里只留"配料 id → 路径"这一段本模块自己的约定。
  */
 export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | null) => void): void {
-  resources.load(`${INGREDIENT_DIR}/${id}/spriteFrame`, SpriteFrame, (error, frame) => {
-    if (error) {
+  loadSpriteFrame(`${INGREDIENT_DIR}/${id}`, (frame, error) => {
+    if (!frame) {
       console.warn('[ingredientIcon] 图标加载失败，已跳过', id, error);
       onLoad(null);
       return;
