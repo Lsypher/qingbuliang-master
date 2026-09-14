@@ -2,12 +2,32 @@ import { _decorator, Component, Label, Node, Sprite, SpriteFrame, UITransform, v
 import { STRINGS } from '../config/strings';
 import { readBestScore } from '../game/bestScore';
 import { TITLE_DESIGN_WIDTH, fitTitleScale } from './startPageLayout';
-import { loadSpriteFrame, setLabelText, visibleWidth } from './uiFactory';
+import { UI_COLOR, loadSpriteFrame, paintRoundPanel, setLabelText, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
 
 /** 玩法一句话两侧的留白（设计像素）：窄屏收字号时按"可见宽度 - 它"给盒子定宽 */
 const HOW_TO_PLAY_SIDE_MARGIN = 40;
+
+/**
+ * 副标题两侧的留白（设计像素）：它下面垫着底框，而底框还要往文字外各扩 28（见 SUBTITLE_BOX_PADDING_X），
+ * 所以这一行留得比玩法说明多——窄屏收窄时底框因此仍与屏幕边留着 8 像素余量。
+ */
+const SUBTITLE_SIDE_MARGIN = 72;
+
+/** 副标题底框的内边距（设计像素）：水平 28 / 垂直 14，底框总比文字盒每边多出这么多 */
+const SUBTITLE_BOX_PADDING_X = 28;
+const SUBTITLE_BOX_PADDING_Y = 14;
+
+/** 副标题底框的圆角半径（设计像素） */
+const SUBTITLE_BOX_RADIUS = 16;
+
+/** 场景里副标题的两套节点：文字与垫在它下层的圆角底框 */
+const SUBTITLE_NODE = 'Subtitle';
+const SUBTITLE_BOX_NODE = 'SubtitleBox';
+
+/** 场景里玩法一句话的节点名 */
+const HOW_TO_PLAY_NODE = 'HowToPlay';
 
 /**
  * 标题艺术字在资源目录里的路径（按文件名取图，与背景图、配料图标同一套约定）。
@@ -27,15 +47,16 @@ const TITLE_FALLBACK_NODE = 'TitleFallback';
  */
 @ccclass('StartView')
 export class StartView extends Component {
-  /** 玩法一句话在场景里摆的原始宽度：收窄过之后遇到宽屏要还原，所以先记住它 */
-  private howToPlayDesignWidth: number | null = null;
+  /** 页面上每行长文字在场景里摆的原始盒宽：收窄过之后遇到宽屏要还原，所以先记住它 */
+  private readonly lineDesignWidths = new Map<string, number>();
 
   protected onEnable(): void {
     setLabelText(this.node, TITLE_FALLBACK_NODE, STRINGS.title);
-    setLabelText(this.node, 'Subtitle', STRINGS.subtitle);
-    setLabelText(this.node, 'HowToPlay', STRINGS.howToPlay);
+    setLabelText(this.node, SUBTITLE_NODE, STRINGS.subtitle);
+    setLabelText(this.node, HOW_TO_PLAY_NODE, STRINGS.howToPlay);
     setLabelText(this.node, 'BestScore', `${STRINGS.bestScoreLabel} ${readBestScore()}`);
     this.showTitle();
+    this.placeSubtitleBox();
     this.refit();
     // 转屏 / 窗口缩放也会改可见宽度，跟着重算一次（标题缩放与玩法说明收窄读的是同一个数）
     view.on('canvas-resize', this.refit, this);
@@ -49,10 +70,83 @@ export class StartView extends Component {
     view.off('canvas-resize', this.refit, this);
   }
 
-  /** 可见宽度变了（转屏、拖窗口）就重排：标题缩放与玩法说明的收窄读的是同一个数 */
+  /**
+   * 可见宽度变了（转屏、拖窗口）就重排：标题缩放、副标题与其底框、玩法说明的收窄读的是同一个数 */
   private refit(): void {
+    this.fitSubtitle();
     this.fitHowToPlay();
     this.fitTitle();
+  }
+
+  /**
+   * 把开始页的一行长文字收进当前可见宽度，返回它最终用的盒宽（设计像素）。
+   *
+   * 可见宽度只有一个来源（uiFactory.visibleWidth），收窄规则也只有这一份：
+   * 装得下就保持场景里摆的设计宽（画面与改动前一致）；装不下就收进"可见宽度 − 这一行自己的留白"，
+   * 同时关掉自动换行、交给引擎缩字号（横竖都还读得清，也不会折成两行把高度撑开）。
+   * 副标题与玩法说明共用它——副标题的底框要跟着文字盒收窄，两边就不可能各算一套。
+   */
+  private fitLineWidth(nodeName: string, sideMargin: number): number {
+    const label = this.node.getChildByName(nodeName)?.getComponent(Label);
+    const transform = label?.node.getComponent(UITransform);
+    if (!label || !transform) return 0;
+
+    const design = this.lineDesignWidths.get(nodeName) ?? transform.width;
+    this.lineDesignWidths.set(nodeName, design);
+    // 可见宽度窄到装不下这一行的留白时（把窗口拖到极窄），下限兜到 0：宁可字缩到最小，也别给个负宽度
+    const width = Math.max(0, Math.min(design, visibleWidth() - sideMargin));
+
+    if (width >= design) {
+      // 宽屏：还原成原始宽度与自动撑开（这是场景里摆版时的状态）
+      label.overflow = Label.Overflow.NONE;
+      label.enableWrapText = true;
+    } else {
+      label.enableWrapText = false;
+      label.overflow = Label.Overflow.SHRINK;
+    }
+    transform.setContentSize(width, transform.height);
+    return width;
+  }
+
+  /**
+   * 副标题：拿共用的收窄结果给文字定宽，底框再跟着文字盒一起收窄——框总比文字每边多出 28 的内边距，
+   * 窄屏上因此既不会"框还是设计宽"（比起文字大得夸张），也不会"框比文字窄"（把字切了）。
+   *
+   * 宽屏（`Overflow.NONE`）下文字会由引擎按实测文字宽自动撑开，那个宽与场景里摆的设计宽是同一号字
+   * 量出来的，所以底框在宽屏上同样贴着文字；窄屏（`Overflow.SHRINK`）下盒子宽度由我们给定、不再被
+   * 引擎改写，框与文字的 28 像素内边距就是精确的。
+   *
+   * 底框的高度跟着文字盒的高度走（同一份尺寸来源），所以两者永远同心。
+   */
+  private fitSubtitle(): void {
+    const text = this.node.getChildByName(SUBTITLE_NODE);
+    const textTransform = text?.getComponent(UITransform);
+    const box = this.node.getChildByName(SUBTITLE_BOX_NODE);
+    const boxTransform = box?.getComponent(UITransform);
+    if (!box || !boxTransform || !textTransform) return;
+
+    const textWidth = this.fitLineWidth(SUBTITLE_NODE, SUBTITLE_SIDE_MARGIN);
+    boxTransform.setContentSize(
+      textWidth + SUBTITLE_BOX_PADDING_X * 2,
+      textTransform.height + SUBTITLE_BOX_PADDING_Y * 2,
+    );
+    // 尺寸先定好再画：绘制读的就是节点自己的尺寸，反了就会画出上一轮的框
+    paintRoundPanel(box, UI_COLOR.subtitleBackdrop, SUBTITLE_BOX_RADIUS);
+  }
+
+  /**
+   * 底框就位：**不能排在副标题之后**。同一层里的节点按顺序画，先画的在下层，
+   * 所以"排在文字之前"就是"半透明黑框不盖住字"的全部依据——场景里本来就是这个顺序，
+   * 这里只在顺序被改坏时把它挪回去（日后在编辑器里把底框拖到文字后面，字会被半透明黑盖住）。
+   *
+   * 只在"已经跑到后面"时才挪，是因为 `setSiblingIndex` 是"先摘出自己、再插到该下标"：
+   * 底框本来就在前面时按文字下标插回去，反而会插到文字**后面**（摘掉自己后文字的下标会前移一位）。
+   */
+  private placeSubtitleBox(): void {
+    const text = this.node.getChildByName(SUBTITLE_NODE);
+    const box = this.node.getChildByName(SUBTITLE_BOX_NODE);
+    if (!text || !box) return;
+    if (box.getSiblingIndex() > text.getSiblingIndex()) box.setSiblingIndex(text.getSiblingIndex());
   }
 
   /**
@@ -108,30 +202,9 @@ export class StartView extends Component {
     fallback.active = false;
   }
 
-  /**
-   * 玩法一句话是页面上最长的一行（642 设计像素），比 9:16 更窄的全面屏手机只看得见约 590 像素宽，
-   * 两边会被裁掉。这里把它的盒子收进可见宽度，交给引擎缩字号（关掉自动换行，保住一行的高度）。
-   * 宽屏上仍旧按场景里摆的原始宽度渲染——收窄是可逆的，回到宽屏不会留下小字号。
-   */
+  /** 玩法一句话是页面上最长的一行，比 9:16 更窄的全面屏只看得见约 590 像素宽，走共用的收窄 */
   private fitHowToPlay(): void {
-    const label = this.node.getChildByName('HowToPlay')?.getComponent(Label);
-    const transform = label?.node.getComponent(UITransform);
-    if (!label || !transform) return;
-
-    if (this.howToPlayDesignWidth === null) this.howToPlayDesignWidth = transform.width;
-    const design = this.howToPlayDesignWidth;
-    const limit = visibleWidth() - HOW_TO_PLAY_SIDE_MARGIN;
-    const width = Math.min(design, limit);
-
-    if (width >= design) {
-      // 宽屏：还原成原始宽度与自动撑开（这是场景里摆版时的状态）
-      label.overflow = Label.Overflow.NONE;
-      label.enableWrapText = true;
-    } else {
-      label.enableWrapText = false;
-      label.overflow = Label.Overflow.SHRINK;
-    }
-    transform.setContentSize(width, transform.height);
+    this.fitLineWidth(HOW_TO_PLAY_NODE, HOW_TO_PLAY_SIDE_MARGIN);
   }
 
   /**
