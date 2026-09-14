@@ -1,7 +1,13 @@
 import { _decorator, Component, Label, Node, Sprite, SpriteFrame, UITransform, view } from 'cc';
 import { STRINGS } from '../config/strings';
 import { readBestScore } from '../game/bestScore';
-import { TITLE_DESIGN_WIDTH, fitTitleScale } from './startPageLayout';
+import {
+  BEST_SCORE_ICON_GAP,
+  BEST_SCORE_ICON_SIZE,
+  TITLE_DESIGN_WIDTH,
+  fitTitleScale,
+  layoutBestScoreRow,
+} from './startPageLayout';
 import { UI_COLOR, loadSpriteFrame, paintRoundPanel, setLabelText, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -30,10 +36,24 @@ const SUBTITLE_BOX_NODE = 'SubtitleBox';
 const HOW_TO_PLAY_NODE = 'HowToPlay';
 
 /**
+ * 场景里最高分那一行的结构：行容器 → 奖杯图标 + 文字。
+ * 整行（图标宽 + 间距 + 文字宽）按实际宽度重算居中，见 placeBestScoreRow。
+ */
+const BEST_SCORE_ROW_NODE = 'BestScore';
+const BEST_SCORE_ICON_NODE = 'Icon';
+const BEST_SCORE_LABEL_NODE = 'Label';
+
+/**
  * 标题艺术字在资源目录里的路径（按文件名取图，与背景图、配料图标同一套约定）。
  * 美术把 `title-art.png` 同名覆盖进这个目录即生效——不改代码、也不回编辑器接线。
  */
 const TITLE_ART_PATH = 'art/ui/title-art';
+
+/**
+ * 奖杯图在资源目录里的路径（同上，按文件名取图）：美术把 `best-score-trophy.png`
+ * 同名覆盖进这个目录即生效；图缺失或加载失败时这一行只显示文字，不会出现一张破图。
+ */
+const BEST_SCORE_TROPHY_PATH = 'art/ui/best-score-trophy';
 
 /** 场景里承载标题的两套节点：图片（艺术字）与文字（兜底），同一时刻只显示其中一个 */
 const TITLE_ART_NODE = 'TitleArt';
@@ -54,9 +74,9 @@ export class StartView extends Component {
     setLabelText(this.node, TITLE_FALLBACK_NODE, STRINGS.title);
     setLabelText(this.node, SUBTITLE_NODE, STRINGS.subtitle);
     setLabelText(this.node, HOW_TO_PLAY_NODE, STRINGS.howToPlay);
-    setLabelText(this.node, 'BestScore', `${STRINGS.bestScoreLabel} ${readBestScore()}`);
     this.showTitle();
     this.placeSubtitleBox();
+    this.showBestScore();
     this.refit();
     // 转屏 / 窗口缩放也会改可见宽度，跟着重算一次（标题缩放与玩法说明收窄读的是同一个数）
     view.on('canvas-resize', this.refit, this);
@@ -200,6 +220,85 @@ export class StartView extends Component {
     }
     art.active = true;
     fallback.active = false;
+  }
+
+  /**
+   * 最高分那一行：文案 + 奖杯，摆成一行并整行居中。
+   *
+   * 文案用**开始页专用串**（带全角冒号，"最高分：128"读起来是一个完整句子），与结算页共用的
+   * `bestScoreLabel` 分开——本次只改开始页，不污染结算页那行。数字每次都重读本地存储：
+   * 上一局刚破的纪录，回到开始页立刻看得见。
+   */
+  private showBestScore(): void {
+    const row = this.node.getChildByName(BEST_SCORE_ROW_NODE);
+    if (!row) {
+      console.warn('[StartView] 最高分那一行的容器没接上，这行这次不刷新');
+      return;
+    }
+    setLabelText(row, BEST_SCORE_LABEL_NODE, `${STRINGS.bestScoreStartLabel}${readBestScore()}`);
+    // 文字先落定，居中排布才有宽度可量（顺序不能反）
+    this.showBestScoreIcon();
+    this.placeBestScoreRow();
+  }
+
+  /**
+   * 奖杯二选一：取到图就显示，取不到（图还没交付、文件坏了）就整个收起来——这一行只显示文字，
+   * 不会出现一张破图。取图与标题同一套（按文件名走界面统一入口），同名覆盖即换图。
+   *
+   * 图显示 / 收起来都会让整行宽度变一次，所以两条路径回来都重排一次（见 placeBestScoreRow）。
+   */
+  private showBestScoreIcon(): void {
+    const icon = this.node.getChildByName(BEST_SCORE_ROW_NODE)?.getChildByName(BEST_SCORE_ICON_NODE);
+    const sprite = icon?.getComponent(Sprite);
+    if (!icon || !sprite) {
+      console.warn('[StartView] 最高分那一行的奖杯节点没接上，这行只显示文字');
+      return;
+    }
+    // 已经在本地缓存里拿到过图（再次回到开始页）就直接显示，不必等回调，免得这一行先只有文字再补上奖杯
+    if (sprite.spriteFrame) {
+      icon.active = true;
+      return;
+    }
+    icon.active = false;
+
+    loadSpriteFrame(BEST_SCORE_TROPHY_PATH, (frame, error) => {
+      // 资源是异步加载的：回调回来时节点可能已经被销毁（页面被切走、场景重开），得先校验
+      if (!icon.isValid) return;
+      if (!frame) {
+        console.warn('[StartView] 奖杯图没取到，最高分这一行只显示文字', error);
+        icon.active = false;
+      } else {
+        sprite.spriteFrame = frame;
+        icon.active = true;
+      }
+      this.placeBestScoreRow();
+    });
+  }
+
+  /**
+   * 把奖杯与文字摆成一行、整行居中；算式在 startPageLayout 里（不依赖引擎、有单测），
+   * 这里只负责量出两段宽度喂给它、再把算出来的偏移原样用上。
+   *
+   * 文字宽用文字节点自己量：`Overflow.NONE` 下引擎按实测文字宽改写这个盒子，但那一步要等渲染才做——
+   * 先 `updateRenderData(true)` 强制同步一次，否则读到的是上一句的宽度，位数一变整行就跑偏。
+   * `updateRenderData` 是引擎的**内部 API**（未进官方文档），升引擎时要复核它是否还在、还同步。
+   * 奖杯没显示时按 0 宽参与计算（算式会连间距一起忽略），文字因此仍然居中。
+   *
+   * 奖杯宽取场景里那个节点的：骨架进场景后版面尺寸以场景为准，常量只作取不到时的兜底。
+   */
+  private placeBestScoreRow(): void {
+    const row = this.node.getChildByName(BEST_SCORE_ROW_NODE);
+    const label = row?.getChildByName(BEST_SCORE_LABEL_NODE)?.getComponent(Label);
+    const labelTransform = label?.node.getComponent(UITransform);
+    if (!row || !label || !labelTransform) return;
+
+    label.updateRenderData(true);
+    const icon = row.getChildByName(BEST_SCORE_ICON_NODE);
+    const iconWidth = icon?.active ? (icon.getComponent(UITransform)?.width ?? BEST_SCORE_ICON_SIZE) : 0;
+    const layout = layoutBestScoreRow(iconWidth, BEST_SCORE_ICON_GAP, labelTransform.width);
+
+    if (icon) icon.setPosition(layout.iconX, icon.position.y, 0);
+    label.node.setPosition(layout.textX, label.node.position.y, 0);
   }
 
   /** 玩法一句话是页面上最长的一行，比 9:16 更窄的全面屏只看得见约 590 像素宽，走共用的收窄 */

@@ -8,11 +8,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  BEST_SCORE_ICON_GAP,
+  BEST_SCORE_ICON_SIZE,
   TITLE_DESIGN_HEIGHT,
   TITLE_DESIGN_WIDTH,
   TITLE_SIDE_MARGIN,
   fitTitleScale,
   fitTitleWidth,
+  layoutBestScoreRow,
 } from '../assets/scripts/ui/startPageLayout';
 
 /** 设计分辨率下看得见的那一档（720×1280、FitHeight 的 9:16 屏） */
@@ -92,6 +95,64 @@ describe('标题按可见宽度缩放', () => {
       expect(width).toBeGreaterThanOrEqual(0);
       expect(scale).toBeGreaterThanOrEqual(0);
       expect(scale).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+/** 34 号字体下"最高分：N"的文字宽量级：1 位约 130、每多一位加 22 上下 */
+const SCORE_TEXT_WIDTHS = [130, 152, 175, 198, 260];
+
+describe('最高分行的整体居中', () => {
+  it('整行总宽等于"图标宽 + 间距 + 文字宽"', () => {
+    for (const textWidth of [0, 40, ...SCORE_TEXT_WIDTHS]) {
+      expect(layoutBestScoreRow(BEST_SCORE_ICON_SIZE, BEST_SCORE_ICON_GAP, textWidth).totalWidth).toBeCloseTo(
+        BEST_SCORE_ICON_SIZE + BEST_SCORE_ICON_GAP + textWidth,
+      );
+    }
+  });
+
+  it('文字位数从 1 位变到多位时整行仍居中：左右两端到行中心的距离相等', () => {
+    for (const textWidth of SCORE_TEXT_WIDTHS) {
+      const { totalWidth, iconX, textX } = layoutBestScoreRow(BEST_SCORE_ICON_SIZE, BEST_SCORE_ICON_GAP, textWidth);
+      const left = iconX - BEST_SCORE_ICON_SIZE / 2;
+      const right = textX + textWidth / 2;
+      expect(left).toBeCloseTo(-totalWidth / 2);
+      expect(right).toBeCloseTo(totalWidth / 2);
+      // 两端到行中心的距离相等 —— 这就是"整行居中"，也是"位数一变就偏"的反面
+      expect(Math.abs(left)).toBeCloseTo(Math.abs(right));
+    }
+  });
+
+  it('文字逐步变宽时图标跟着左移：居中位置随文字实际宽度重算，而非写死', () => {
+    let previousIconX = Number.POSITIVE_INFINITY;
+    for (const textWidth of SCORE_TEXT_WIDTHS) {
+      const { iconX } = layoutBestScoreRow(BEST_SCORE_ICON_SIZE, BEST_SCORE_ICON_GAP, textWidth);
+      expect(iconX).toBeLessThan(previousIconX);
+      previousIconX = iconX;
+    }
+  });
+
+  it('奖杯不显示（图标宽为 0）时连间距一起忽略：这一行只剩文字且仍然居中', () => {
+    const { totalWidth, iconX, textX } = layoutBestScoreRow(0, BEST_SCORE_ICON_GAP, 152);
+    expect(totalWidth).toBe(152);
+    expect(textX).toBe(0);
+    expect(iconX).toBe(-76);
+  });
+
+  it('文字宽为 0 时整行被"图标 + 间距"占满，输出仍是有限且居中的确定值', () => {
+    const { totalWidth, iconX, textX } = layoutBestScoreRow(BEST_SCORE_ICON_SIZE, BEST_SCORE_ICON_GAP, 0);
+    expect(totalWidth).toBe(BEST_SCORE_ICON_SIZE + BEST_SCORE_ICON_GAP);
+    expect(iconX).toBeCloseTo(-BEST_SCORE_ICON_GAP / 2);
+    expect(textX).toBeCloseTo((BEST_SCORE_ICON_SIZE + BEST_SCORE_ICON_GAP) / 2);
+  });
+
+  it('文字宽量不出来或为负（含"图标 + 间距"已占满整行盒）时，输出有限、非负、不出现 NaN / Infinity', () => {
+    for (const textWidth of [0, -50, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const { totalWidth, iconX, textX } = layoutBestScoreRow(BEST_SCORE_ICON_SIZE, BEST_SCORE_ICON_GAP, textWidth);
+      for (const value of [totalWidth, iconX, textX]) {
+        expect(Number.isFinite(value)).toBe(true);
+      }
+      expect(totalWidth).toBeGreaterThanOrEqual(0);
     }
   });
 });

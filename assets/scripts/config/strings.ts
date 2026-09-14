@@ -24,8 +24,16 @@ export const STRINGS = {
   comboLabel: '连击',
   ordersLabel: '完成订单',
   countdownLabel: '倒计时',
-  /** 最高分：开始页与结算页共用一行文案 */
+  /**
+   * 最高分的共用串（**不带冒号**）：结算页那行用它，形如"最高分 128"。
+   * 开始页改版后不再用它——两条并存，本次不污染结算页（见 bestScoreStartLabel）。
+   */
   bestScoreLabel: '最高分',
+  /**
+   * 开始页专用串：带**全角冒号**，与后面的数字连起来读是"最高分：128"一个完整句子。
+   * 与结算页共用的 bestScoreLabel 分开的理由：改结算页那句属单局/结算范围，不归开始页改版。
+   */
+  bestScoreStartLabel: '最高分：',
   /** 订单卡标题与已放进度 */
   orderTitle: '顾客要这一碗',
   placedLabel: '已放',
