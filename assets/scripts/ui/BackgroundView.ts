@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, Sprite, assetManager } from 'cc';
-import { BACKGROUND_DIR, BACKGROUNDS } from '../config/backgrounds';
+import { BACKGROUND_DIR, BACKGROUNDS, START_BACKGROUND } from '../config/backgrounds';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import type { RandomSource } from '../core/random';
 import { createRandom, pickOne } from '../core/random';
@@ -10,13 +10,14 @@ import { createUiNode, loadSpriteFrame, paintPanel, UI_COLOR } from './uiFactory
 const { ccclass } = _decorator;
 
 /**
- * 背景层：每局从背景池随机抽一张铺满全屏，同一局内不切换；开始页与结算页把它压暗。
+ * 背景层：开始页用专属背景图（固定不随机），进单局才从背景池随机抽一张，同一局内不切换；
+ * 开始页与结算页把它压暗。
  *
  * 纯表现，不参与任何规则判定：它只听"现在切到哪一页"这一条广播，
  * 页面状态只在组合根那一处产生，这里不再自己拼一份。
  *
  * 内存上只留当前一张：换背景时把上一张 release 掉——
- * 4 张 1080x1920 全常驻要 30MB 上下，而任意时刻只会显示一张。
+ * 5 张 1080x1920 全常驻要 40MB 上下，而任意时刻只会显示一张。
  */
 @ccclass('BackgroundView')
 export class BackgroundView extends Component {
@@ -37,8 +38,8 @@ export class BackgroundView extends Component {
 
     bus.on(BusEvent.PageShown, this.onPageShown, this);
 
-    // 开始页也要有背景，先抽一张垫着；等玩家开局才会换
-    this.pickBackground();
+    // 开始页用专属背景图垫着；等玩家开局才随机换
+    this.showStartBackground();
   }
 
   protected onDestroy(): void {
@@ -46,15 +47,22 @@ export class BackgroundView extends Component {
   }
 
   /**
-   * 跟着页面走：进单局才换背景（这一局里就不再变），其余页面一律压暗给文字让路。
+   * 跟着页面走：进单局才随机换背景（这一局里就不再变），回开始页换回专属背景，
+   * 其余页面一律压暗给文字让路。
    * 压暗只有这一个来源——"回开始页忘了解压暗"这种错不会再有第二个地方可以漏。
    */
   private onPageShown(page: ScenePage): void {
     this.setDimmed(page !== 'game');
     if (page === 'game') this.pickBackground();
+    else if (page === 'start') this.showStartBackground();
   }
 
-  /** 从背景池随机抽一张换上 */
+  /** 开始页专属背景：固定一张，不参与随机 */
+  private showStartBackground(): void {
+    this.showAt(`${BACKGROUND_DIR}/${START_BACKGROUND}`);
+  }
+
+  /** 从单局背景池随机抽一张换上 */
   private pickBackground(): void {
     this.showAt(`${BACKGROUND_DIR}/${pickOne(BACKGROUNDS, this.random)}`);
   }

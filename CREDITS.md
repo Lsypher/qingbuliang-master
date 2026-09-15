@@ -2,7 +2,7 @@
 
 登记游戏里用到的每一份外部素材及其许可。依据 `docs/adr/0001-asset-sourcing-and-licensing.md`：只用授权明确的素材（CC0 / MIT / CC-BY / 项目自备），来源不明的素材站一律不用。
 
-## 背景图（4 张）
+## 背景图（5 张：4 张单局随机池 + 1 张开始页专属）
 
 按 `docs/art/background-prompts.md` 的出图需求产出、由用户交付。原始文件为 1600×2848 PNG，已随提交 `e0ed041` 入库；需要取回原图时执行 `git checkout e0ed041 -- assets/art/backgrounds`。仓库里现存的是下面这套压缩后的上线档位。
 
@@ -12,6 +12,7 @@
 | `assets/resources/art/backgrounds/qingbuliang-stall-night.jpg` | 清补凉夜市摊 | 同上 |
 | `assets/resources/art/backgrounds/palm-coast-dusk.jpg` | 椰林海岸黄昏 | 同上 |
 | `assets/resources/art/backgrounds/li-brocade-pattern.png` | 黎锦纹样底纹 | 同上 |
+| `assets/resources/art/backgrounds/start-page.jpg` | 清补凉夜市摊（**开始页专属**，固定不随机） | 用户交付，源图 607×1080 |
 
 **已处理的素材问题（12 号切片验收时发现并裁掉）**：4 张图右下角都带 **"豆包AI生成"** 水印；`palm-coast-dusk.jpg` 还不只是水印——它是一张手机截图，顶部带着手机状态栏（电量百分比 / 信号 / Wi-Fi / 电池图标），底部还有 home 指示条。单局页底部被配料盘盖住看不见，但**开始页与结算页压暗后两者都清晰可见**。处置方式：**从 `e0ed041` 的原图裁切**（原图未动，要重出可整张替换）。四张统一按 9:16 收边：裁下 98 px、左右各 26 px；`palm-coast-dusk` 另裁上 138 px、左右各 65 px。
 
@@ -23,7 +24,10 @@
 | `qingbuliang-stall-night.jpg` | 1080×1920 JPEG q86 | 295 KB | 37.9 dB |
 | `palm-coast-dusk.jpg` | 1080×1920 JPEG q86 | 162 KB | 39.5 dB |
 | `li-brocade-pattern.png` | 540×960 PNG-128 调色板 | 342 KB | 33.0 dB |
-| **合计** | | **1132 KB** | |
+| `start-page.jpg` | 607×1080 JPEG q90 | 102 KB | 38.7 dB |
+| **合计** | | **1235 KB** | |
+
+开始页专属背景 2026-09-15 由用户交付（交付件是 607×1080 的 JPEG，原扩展名为 `.png`，入库时按真实格式改名为 `.jpg`）；交付时已按验收清单核对：四角放大无生图工具水印、无手机状态栏 / home 指示条，比例即 9:16，无需裁切——只做了一次 q90 重编码压进 400 KB 以内。
 
 黎锦纹样是满幅几何图案：JPEG 在细线上振铃明显且压不进 400 KB，改用减色 PNG（线条锐利、无振铃），代价是分辨率降到 540×960。
 
