@@ -18,6 +18,8 @@ export const UI_COLOR = {
   backgroundDim: new Color(0, 0, 0, 175),
   /** 开始页副标题的圆角底框：45% 不透明的黑（α = 255 × 0.45 ≈ 115），垫在文字下面，压在花哨背景上也读得清 */
   subtitleBackdrop: new Color(0, 0, 0, 115),
+  /** 开始页开摊按钮的占位底图：木色圆角面板，取色自交付底图的木纹中间调；真底图到位后由 StartView 收起 */
+  startButtonPlaceholder: new Color(183, 100, 40, 255),
   /** 错放红闪：只红在屏幕边缘（中间留空），不挡中央信息。实际亮度由 UIOpacity 控制淡出 */
   misdropFlash: new Color(255, 70, 70, 220),
   /** 错放飘字：高饱和正红，比原来的浅粉更跳眼，凑近也能一眼看见 */

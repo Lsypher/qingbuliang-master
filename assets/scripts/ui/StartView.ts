@@ -1,4 +1,4 @@
-import { _decorator, Component, Label, Node, Sprite, SpriteFrame, UITransform, view } from 'cc';
+import { _decorator, Button, Component, Label, Node, Sprite, SpriteFrame, UITransform, view } from 'cc';
 import { STRINGS } from '../config/strings';
 import { readBestScore } from '../game/bestScore';
 import {
@@ -55,6 +55,31 @@ const TITLE_ART_PATH = 'art/ui/title-art';
  */
 const BEST_SCORE_TROPHY_PATH = 'art/ui/best-score-trophy';
 
+/**
+ * 开摊按钮底图在资源目录里的路径（同上，按文件名取图）：正常 / 按下两张，
+ * 美术把 `start-button.png` / `start-button-pressed.png` 同名覆盖进这个目录即生效——
+ * 不改代码、也不回编辑器接线。**不取悬停态**：手机端没有悬停，出一张只在桌面鼠标上生效的图不值得。
+ */
+const START_BUTTON_ART_PATH = 'art/ui/start-button';
+const START_BUTTON_PRESSED_ART_PATH = 'art/ui/start-button-pressed';
+
+/**
+ * 场景里按钮的结构：按钮节点（Sprite 底图 + Button）→ 占位底图 + 文字。
+ * 占位底图排在文字之前，所以压不到"开摊"两个字。
+ */
+const START_BUTTON_NODE = 'StartButton';
+const START_BUTTON_PLACEHOLDER_NODE = 'Placeholder';
+const START_BUTTON_LABEL_NODE = 'Label';
+
+/** 占位底图的圆角半径（设计像素）：与场景里副标题底框同一档圆角 */
+const START_BUTTON_PLACEHOLDER_RADIUS = 16;
+
+/**
+ * 按下时按钮缩到的比例：手机端没有悬停，玩家对"按下有没有反应"的感知全在这一瞬间的画面变化上。
+ * 0.95 量级——看得出来动了，又不至于像"掉下去"。
+ */
+const START_BUTTON_PRESS_SCALE = 0.95;
+
 /** 场景里承载标题的两套节点：图片（艺术字）与文字（兜底），同一时刻只显示其中一个 */
 const TITLE_ART_NODE = 'TitleArt';
 const TITLE_FALLBACK_NODE = 'TitleFallback';
@@ -70,6 +95,11 @@ export class StartView extends Component {
   /** 页面上每行长文字在场景里摆的原始盒宽：收窄过之后遇到宽屏要还原，所以先记住它 */
   private readonly lineDesignWidths = new Map<string, number>();
 
+  protected onLoad(): void {
+    // 按钮的占位底图与"按下缩小"各只需要做一次，所以放这里，而不是每回开始页都重来一遍的 onEnable
+    this.setupStartButton();
+  }
+
   protected onEnable(): void {
     setLabelText(this.node, TITLE_FALLBACK_NODE, STRINGS.title);
     setLabelText(this.node, SUBTITLE_NODE, STRINGS.subtitle);
@@ -77,17 +107,16 @@ export class StartView extends Component {
     this.showTitle();
     this.placeSubtitleBox();
     this.showBestScore();
+    this.showStartButton();
     this.refit();
     // 转屏 / 窗口缩放也会改可见宽度，跟着重算一次（标题缩放与玩法说明收窄读的是同一个数）
     view.on('canvas-resize', this.refit, this);
-
-    // 按钮文字在按钮节点下的 Label 上，得从按钮节点里找
-    const startButton = this.node.getChildByName('StartButton');
-    if (startButton) setLabelText(startButton, 'Label', STRINGS.startButton);
   }
 
   protected onDisable(): void {
     view.off('canvas-resize', this.refit, this);
+    // 按到一半被切走（起手就进了单局）时把形变收回来，别把"按下的样子"漏到下一次显示
+    this.node.getChildByName(START_BUTTON_NODE)?.setScale(1, 1, 1);
   }
 
   /**
@@ -299,6 +328,100 @@ export class StartView extends Component {
 
     if (icon) icon.setPosition(layout.iconX, icon.position.y, 0);
     label.node.setPosition(layout.textX, label.node.position.y, 0);
+  }
+
+  /**
+   * 开摊按钮的一次性装配：画好占位底图、把"按下缩小"接上。
+   *
+   * 按下缩小**不能交给 Button 的缩放过渡**：一个按钮只有一种过渡方式，而换图已经用了 Sprite 过渡
+   * （正常 / 按下两态），所以这条自己接。缩的是按钮节点本身，而"开摊"两个字是它的子节点，
+   * 于是文字跟着底图一起动，不会出现"文字与底图分离"。
+   */
+  private setupStartButton(): void {
+    const buttonNode = this.node.getChildByName(START_BUTTON_NODE);
+    if (!buttonNode) {
+      console.warn('[StartView] 开摊按钮没接上，按钮区这次不刷新');
+      return;
+    }
+    this.paintStartButtonPlaceholder(buttonNode);
+
+    // 按下 / 松手都是一次性 setScale、不做补间：这一瞬间的形变就是全部反馈，补间反而慢半拍
+    const shrink = (): void => buttonNode.setScale(START_BUTTON_PRESS_SCALE, START_BUTTON_PRESS_SCALE, 1);
+    const restore = (): void => buttonNode.setScale(1, 1, 1);
+    buttonNode.on(Node.EventType.TOUCH_START, shrink, this);
+    buttonNode.on(Node.EventType.TOUCH_END, restore, this);
+    // 手指划出按钮范围（Button 判定为取消）也要还原，否则按钮会卡在缩小的样子
+    buttonNode.on(Node.EventType.TOUCH_CANCEL, restore, this);
+  }
+
+  /**
+   * 占位底图：程序化画一块木色圆角面板（颜色取自交付底图的木纹中间调）。
+   *
+   * 底图还没交付 / 加载失败时它顶着，版面与按下反馈当天就能验收，不必等美术；
+   * 它是按钮的子节点，所以按下时跟按钮一起缩。取到真底图后由 setStartButtonPlaceholderVisible 收起——
+   * 两者互斥，占位底不会盖住真图，也就不需要在场景里留按钮自己的纯色绘制组件。
+   */
+  private paintStartButtonPlaceholder(buttonNode: Node): void {
+    const placeholder = buttonNode.getChildByName(START_BUTTON_PLACEHOLDER_NODE);
+    if (!placeholder) {
+      console.warn('[StartView] 按钮的占位底图节点没接上，底图缺失时按钮会没有底板');
+      return;
+    }
+    paintRoundPanel(placeholder, UI_COLOR.startButtonPlaceholder, START_BUTTON_PLACEHOLDER_RADIUS);
+    placeholder.active = true;
+  }
+
+  /**
+   * 开摊按钮：文字仍从文案表取；底图按文件名取（正常 / 按下两态），换图由场景里设好的
+   * Sprite 过渡完成——按下换图、松手换回，**不提供悬停态图**（手机端没有悬停，悬停复用正常态）。
+   */
+  private showStartButton(): void {
+    const buttonNode = this.node.getChildByName(START_BUTTON_NODE);
+    const button = buttonNode?.getComponent(Button);
+    if (!buttonNode || !button) return;
+    setLabelText(buttonNode, START_BUTTON_LABEL_NODE, STRINGS.startButton);
+    this.showStartButtonArt(buttonNode, button);
+  }
+
+  /**
+   * 按钮底图二选一：取到图就用图（并收起占位底），取不到（图还没交付、文件坏了）就留着占位底——
+   * 按钮任何时候都有底板，不会变成一块空白。取图与标题、奖杯同一套（按文件名走界面统一入口）。
+   *
+   * 按下态是**可缺**的：Button 在按下时拿不到 pressedSprite 会保持当前这一帧，不会画出破图，
+   * 所以这里只告警、不拿它当失败。正常态拿不到才算真没底图，占位底继续顶着。
+   */
+  private showStartButtonArt(buttonNode: Node, button: Button): void {
+    // 已经在本地缓存里拿到过图（再次回到开始页）就直接用，不必等回调，免得闪一下占位底
+    if (button.normalSprite) {
+      this.setStartButtonPlaceholderVisible(buttonNode, false);
+      return;
+    }
+    loadSpriteFrame(START_BUTTON_ART_PATH, (normal, error) => {
+      // 资源是异步加载的：回调回来时节点可能已经被销毁（页面被切走、场景重开），得先校验
+      if (!buttonNode.isValid) return;
+      if (!normal) {
+        console.warn('[StartView] 按钮底图没取到，继续用程序化占位底', error);
+        return;
+      }
+      button.normalSprite = normal;
+      // 悬停复用正常态：手机端没有悬停，不为桌面鼠标单独出一张图
+      button.hoverSprite = normal;
+      this.setStartButtonPlaceholderVisible(buttonNode, false);
+    });
+    loadSpriteFrame(START_BUTTON_PRESSED_ART_PATH, (pressed, error) => {
+      if (!buttonNode.isValid) return;
+      if (!pressed) {
+        console.warn('[StartView] 按钮按下态底图没取到，按下时仍显示正常态', error);
+        return;
+      }
+      button.pressedSprite = pressed;
+    });
+  }
+
+  /** 有真底图就把占位底收起来，没有就让它继续顶着（两者互斥，谁也不会盖住谁） */
+  private setStartButtonPlaceholderVisible(buttonNode: Node, visible: boolean): void {
+    const placeholder = buttonNode.getChildByName(START_BUTTON_PLACEHOLDER_NODE);
+    if (placeholder) placeholder.active = visible;
   }
 
   /** 玩法一句话是页面上最长的一行，比 9:16 更窄的全面屏只看得见约 590 像素宽，走共用的收窄 */
