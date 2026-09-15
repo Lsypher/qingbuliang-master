@@ -80,7 +80,9 @@ assets/
   resources/art/
     backgrounds/               4 张海南背景（按文件名运行时加载，换图只换文件）
     ingredients/               12 张配料图标（文件名即配料 id）
-docs/                          ADR、设计基线、背景出图需求、agent 约定
+    ui/                        开始页界面图 4 个文件：标题艺术字、按钮底图（正常 / 按下）、最高分奖杯
+                               （同样按文件名加载，同名覆盖即换图）
+docs/                          ADR、设计基线、背景与界面出图需求、agent 约定
 tests/                         纯逻辑核心层的单元测试
 ```
 
@@ -102,4 +104,6 @@ tests/                         纯逻辑核心层的单元测试
 - `CONTEXT.md`：领域词表（术语以它为准）
 - `docs/design/mvp-spec.md`：设计基线（玩法、界面、验收清单）
 - `docs/adr/0001-asset-sourcing-and-licensing.md`：素材来源与授权策略
+- `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍
 - `docs/art/background-prompts.md`：背景出图需求
+- `docs/art/ui-prompts.md`：开始页界面出图需求（标题艺术字 / 按钮底图两态 / 最高分奖杯）
