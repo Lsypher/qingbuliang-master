@@ -95,6 +95,7 @@ tests/                         纯逻辑核心层的单元测试
 
 - **配料图标**：Microsoft Fluent Emoji（3D 风格 PNG，256×256，**MIT**），12 格里有 6 格用近似图标 + 中文标签兜底。
 - **背景图**：4 张按 `docs/art/background-prompts.md` 的出图需求产出、由项目方交付；压缩档位与保真度记在 `CREDITS.md`。
+- **开始页界面图**：4 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。
 - **音频**：无（本版本不做音频）。
 
 致谢同时出现在游戏内结算页底部（`STRINGS.creditLabel`）。
