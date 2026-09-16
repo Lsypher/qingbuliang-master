@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { ALL_INGREDIENTS } from '../assets/scripts/config/ingredients';
 import { PREPARE_MIN_SHOW_MS, PREPARE_TIMEOUT_MS } from '../assets/scripts/config/prepareTransition';
 import { decideEntry } from '../assets/scripts/core/entryGate';
 
@@ -21,10 +22,10 @@ const NOTHING_SETTLED = 0;
 const NOTHING_TO_PRELOAD = 0;
 
 /**
- * 接真预载后的真实总量：12 格配料图标 + 1 张本局背景。
- * 测试里它只是个"总项数"的代表值，用真实数以便读起来对应到这一局的预载范围。
+ * 接真预载后的真实总量：全部配料图标 + 1 张本局背景。
+ * 直接取配料表长度，避免配料表变动时这个"总项数"与 config 漂移（硬编码 13 会悄无声息地失准）。
  */
-const PRELOAD_TOTAL = 13;
+const PRELOAD_TOTAL = ALL_INGREDIENTS.length + 1;
 /** 预载全部有结果时，已决数 = 总项数 */
 const ALL_SETTLED = PRELOAD_TOTAL;
 
