@@ -89,6 +89,15 @@ export function loadSpriteFrame(path: string, onLoad: (frame: SpriteFrame | null
   });
 }
 
+/**
+ * 一次预载任务：调用方拿到 `done`，加载**有结果**（成功或失败）时调它一次。
+ *
+ * 谁拥有资源谁提供任务——背景层给出"预载本局背景"、配料盘给出"预载 12 格图标"，
+ * 加载路径因此各自留在自己那层，过场只数"已决几项"、不区分成败：
+ * 缺图各有各的既有兜底（背景保留旧图、图标跳过这一格），不在这层再判一次。
+ */
+export type PreloadTask = (done: () => void) => void;
+
 /** 在节点上画一块纯色面板，可带描边；重复调用会重画（换色、改尺寸都用它） */
 export function paintPanel(node: Node, fill: Color, border?: Color): Graphics {
   return drawPanel(node, fill, 0, border);

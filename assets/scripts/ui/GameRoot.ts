@@ -8,6 +8,7 @@ import { MisdropFeedback } from './MisdropFeedback';
 import { PrepareTransition } from './PrepareTransition';
 import { ResultView } from './ResultView';
 import { ServeFeedback } from './ServeFeedback';
+import type { PreloadTask } from './uiFactory';
 import { createUiNode } from './uiFactory';
 
 const { ccclass, property } = _decorator;
@@ -42,6 +43,11 @@ export class GameRoot extends Component {
   /** 准备过场层：运行时装配到画布最上层，场景文件因此不用回编辑器接线 */
   private prepareTransition: PrepareTransition | null = null;
   /**
+   * 背景层：本局背景的抽定与预载都经它。
+   * 组合根只负责"在过场开始前让它先抽定、把交出的预载任务转交给过场"，不知道背景池里有哪几张。
+   */
+  private background: BackgroundView | null = null;
+  /**
    * "正在进入"的幂等标志：过场期间、以及交接完的那一两帧内，重复点开摊／重开一律忽略。
    * 它与过场层的整屏吃触摸**分工不同、不重复**：一个挡时间上的重复开局，一个挡空间上的点击穿透。
    */
@@ -69,9 +75,8 @@ export class GameRoot extends Component {
       console.warn('[GameRoot] 找不到 Background 节点，背景层没装配上');
       return;
     }
-    if (!backgroundNode.getComponent(BackgroundView)) {
-      backgroundNode.addComponent(BackgroundView);
-    }
+    // 留下引用：进单局前要请它先抽定本局背景（见 showGame）
+    this.background = backgroundNode.getComponent(BackgroundView) ?? backgroundNode.addComponent(BackgroundView);
   }
 
   /**
@@ -133,9 +138,13 @@ export class GameRoot extends Component {
   /**
    * 进入单局页：点开摊与点重开走的都是这里。
    *
-   * 改版后不再"点下去就开跑"：先亮起准备过场，由它按放行判据（core，最短展示时长 / 超时）决定
-   * 什么时候放行，放行那一帧才走原来那两步。单局计时由"开一局新的"建立，它落在过场之后，
+   * 改版后不再"点下去就开跑"：先亮起准备过场，由它按放行判据（core，最短展示时长 / 预载完成 / 超时）
+   * 决定什么时候放行，放行那一帧才走原来那两步。单局计时由"开一局新的"建立，它落在过场之后，
    * 于是准备时间不占那 60 秒，也不需要额外的暂停机制。
+   *
+   * 本局背景在过场**开始前**就抽定（抽图与显示拆成两步），并作为过场的一项预载：
+   * 过场期间图先到手、由背景层留着，交接那一帧背景层同步换上它，进单局页时背景已经就位。
+   * 这里只做编排——背景是哪张、从哪个池子抽，都在背景层，组合根不知道。
    *
    * 过场期间连点这里只会被 `entering` 挡下：过场层的整屏吃触摸能挡掉"点到底下按钮"，
    * 但挡不掉已经落在按钮上、过场出现后才抬起的第二根手指，那一路只有这个标志能挡。
@@ -143,8 +152,10 @@ export class GameRoot extends Component {
   showGame(): void {
     if (this.entering) return;
     this.entering = true;
-    if (this.prepareTransition) this.prepareTransition.begin(() => this.enterGame());
+    const preloads: PreloadTask[] = this.background ? [this.background.rollRoundBackground()] : [];
+    if (this.prepareTransition) this.prepareTransition.begin(() => this.enterGame(), preloads);
     // 过场层没装配上（场景缺节点又建不出来）时退回改动前的直接进入：宁可没有过场，也不能把玩家挡在开始页
+    // （这是条兜底路：预载任务没人跑，本局背景会沿用切换前的那张，不会中途再换——见 showRolledBackground）
     else this.enterGame();
   }
 

@@ -3,6 +3,7 @@ import { PREPARE_MIN_SHOW_MS, PREPARE_TIMEOUT_MS } from '../config/prepareTransi
 import { STRINGS } from '../config/strings';
 import type { EntryLimits } from '../core/entryGate';
 import { decideEntry } from '../core/entryGate';
+import type { PreloadTask } from './uiFactory';
 import { createLabel, paintPanel, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -18,8 +19,11 @@ const TEXT_Y = 0;
  * 准备过场层：横在开始页／结算页与单局页之间的一段全屏过场（无按钮、不可交互）。
  *
  * 它**不是第 4 个界面状态**：出现时底下的页面仍在场，"三个界面状态互斥显示"那条不变式与切页逻辑都不动。
- * 它只做两件事：亮满最短展示时长（放行判据在 core 层，见 core/entryGate.ts），
+ * 它只做三件事：把组合根交来的预载任务跑起来、亮满节拍（放行判据在 core 层，见 core/entryGate.ts），
  * 然后在**同一帧里**把交接交给组合根，最后才熄自己。
+ *
+ * 预载任务由**拥有资源的那些层**提供（本局背景来自背景层、12 格图标来自配料盘），
+ * 本层只数"已决几项"，不碰加载路径、也不区分成功与失败——缺图各有各的既有兜底。
  *
  * 计时不可能在过场期间偷跑：本组件不碰 GameSession，单局页此时仍是隐藏的、其组件不参与逐帧推进，
  * 而单局计时由"开一局新的"这个动作建立——它落在交接之后，所以准备时间不占那 60 秒。
@@ -33,25 +37,47 @@ export class PrepareTransition extends Component {
   private onHandOff: (() => void) | null = null;
   /** 内容只装配一次：过场每局都要亮一次，反复建节点等于每局多一份垃圾 */
   private built = false;
+  /** 预载**已决**数与总数：喂给放行判据。已决不区分成功与失败 */
+  private settled = 0;
+  private total = 0;
 
   /**
-   * 亮起过场。放行那一帧调用 `onHandOff`（组合根在那里切页 + 开一局新的），随后自己熄灭。
+   * 亮起过场：先把 `preloads` 跑起来，再按判据（最短展示时长 / 预载完成 / 硬超时）等放行。
+   * 放行那一帧调用 `onHandOff`（组合根在那里切页 + 开一局新的），随后自己熄灭。
    * 重复调用不会叠出第二段过场：组合根用"正在进入"的幂等标志挡住重复进入。
    */
-  begin(onHandOff: () => void): void {
+  begin(onHandOff: () => void, preloads: readonly PreloadTask[]): void {
     this.build();
     this.onHandOff = onHandOff;
     this.elapsedMs = 0;
+    this.settled = 0;
+    this.total = preloads.length;
     this.running = true;
     this.node.active = true;
+    this.startPreloads(preloads);
   }
 
   protected update(deltaTime: number): void {
     if (!this.running) return;
     this.elapsedMs += deltaTime * 1000;
-    // 01 号票还没有要预载的东西：已决数与总数都是 0，判据退化成"只等最短展示时长"。
-    // 接上真预载（本局背景、12 格配料图标）是 02、03 号票的事，这一步只把判据接进真实节拍。
-    if (decideEntry(this.elapsedMs, 0, 0, ENTRY_LIMITS) === 'go') this.handOff();
+    // 放行 = max(最短展示时长, 预载完成)，另有硬超时兜底；判据本身在 core 层，这里只喂"过了多久、已决几项"
+    if (decideEntry(this.elapsedMs, this.settled, this.total, ENTRY_LIMITS) === 'go') this.handOff();
+  }
+
+  /**
+   * 跑预载任务：每项**有结果**（成功或失败）时把"已决数"加一。
+   *
+   * 每项只认第一次回调——重复回调会让已决数超过总数，判据在预载并没真的做完时就提前放行。
+   */
+  private startPreloads(preloads: readonly PreloadTask[]): void {
+    for (const preload of preloads) {
+      let settled = false;
+      preload(() => {
+        if (settled) return;
+        settled = true;
+        this.settled++;
+      });
+    }
   }
 
   /**
