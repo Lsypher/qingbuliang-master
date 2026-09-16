@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-issue 以 Markdown 文件存放在 `.scratch/<feature>/` 下（本仓库无 git 远程，使用本地 Markdown 记录）。见 `docs/agents/issue-tracker.md`。
+issue 以 Markdown 文件存放在 `.scratch/<feature>/` 下（仓库虽有 GitHub 远程，issue 与 spec 仍只记本地 Markdown，不建 GitHub issue）。见 `docs/agents/issue-tracker.md`。
 
 ### Triage labels
 

@@ -16,6 +16,8 @@ export const UI_COLOR = {
   bowlHighlightBorder: new Color(255, 206, 130, 230),
   /** 背景压暗层：开始页与结算页盖在背景图上，让文字读起来不费劲 */
   backgroundDim: new Color(0, 0, 0, 175),
+  /** 准备过场的整屏底：与面板同色系，但**完全不透明**——过场期间底下的按钮必须"看不见、也点不到" */
+  transitionBackdrop: new Color(24, 32, 46, 255),
   /** 开始页副标题的圆角底框：45% 不透明的黑（α = 255 × 0.45 ≈ 115），垫在文字下面，压在花哨背景上也读得清 */
   subtitleBackdrop: new Color(0, 0, 0, 115),
   /** 开始页开摊按钮的占位底图：木色圆角面板，取色自交付底图的木纹中间调；真底图到位后由 StartView 收起 */

@@ -19,6 +19,11 @@ export const STRINGS = {
   startButton: '开摊',
   /** 首局引导：浮在配料盘上方，首单出餐后消失（见 ui/GuideHint.ts） */
   guide: '把配料拖进碗里，凑齐即出餐',
+  /**
+   * 准备过场上的那一句（见 ui/PrepareTransition.ts）。
+   * 刻意**不带海南味**：方言配额已经给了结算页与连击"够劲！"，要在这里用方言得从别处挪一个出来。
+   */
+  prepareTransition: '正在备料…',
 
   scoreLabel: '分数',
   comboLabel: '连击',
