@@ -4,6 +4,7 @@ import type { RenderPayload, ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
+import { IngredientTray } from './IngredientTray';
 import { MisdropFeedback } from './MisdropFeedback';
 import { PrepareTransition } from './PrepareTransition';
 import { ResultView } from './ResultView';
@@ -48,6 +49,11 @@ export class GameRoot extends Component {
    */
   private background: BackgroundView | null = null;
   /**
+   * 配料盘：本局 12 格配料图标的预载任务经它。
+   * 组合根只负责"进单局前请它交出预载任务、转交给过场"，加载路径留在配料盘自己那层，不知道有哪 12 格。
+   */
+  private tray: IngredientTray | null = null;
+  /**
    * "正在进入"的幂等标志：过场期间、以及交接完的那一两帧内，重复点开摊／重开一律忽略。
    * 它与过场层的整屏吃触摸**分工不同、不重复**：一个挡时间上的重复开局，一个挡空间上的点击穿透。
    */
@@ -58,6 +64,7 @@ export class GameRoot extends Component {
     this.bindClick(this.restartButton, this.showGame);
     bus.on(BusEvent.Render, this.onRender, this);
     this.assembleBackground();
+    this.assembleTray();
     this.assembleGameFeedback();
     this.assemblePrepareTransition();
     this.showStart();
@@ -77,6 +84,18 @@ export class GameRoot extends Component {
     }
     // 留下引用：进单局前要请它先抽定本局背景（见 showGame）
     this.background = backgroundNode.getComponent(BackgroundView) ?? backgroundNode.addComponent(BackgroundView);
+  }
+
+  /**
+   * 兜底装配配料盘引用：场景里没挂 IngredientTray 时补上。
+   *
+   * 同样带存在性判断、同样只兜"场景漏挂"；留下引用是为进单局前请它交出 12 格图标的预载任务
+   * （见 showGame）。本组件 `onLoad` 此时还没跑（单局页还隐藏），但组件实例已存在，getComponent 能取到。
+   */
+  private assembleTray(): void {
+    const gamePage = this.gamePage;
+    if (!gamePage) return;
+    this.tray = gamePage.getComponent(IngredientTray) ?? null;
   }
 
   /**
@@ -152,10 +171,14 @@ export class GameRoot extends Component {
   showGame(): void {
     if (this.entering) return;
     this.entering = true;
-    const preloads: PreloadTask[] = this.background ? [this.background.rollRoundBackground()] : [];
+    // 预载任务由"拥有资源那层"提供：背景层交出本局背景、配料盘交出 12 格图标。
+    // 过场按"已决几项 / 总项数"放行，两个来源各自把加载路径留在本层，组合根只做编排。
+    const preloads: PreloadTask[] = [];
+    if (this.background) preloads.push(this.background.rollRoundBackground());
+    if (this.tray) preloads.push(...this.tray.preloadIcons());
     if (this.prepareTransition) this.prepareTransition.begin(() => this.enterGame(), preloads);
     // 过场层没装配上（场景缺节点又建不出来）时退回改动前的直接进入：宁可没有过场，也不能把玩家挡在开始页
-    // （这是条兜底路：预载任务没人跑，本局背景会沿用切换前的那张，不会中途再换——见 showRolledBackground）
+    // （这是条兜底路：预载任务没人跑，本局背景会沿用切换前的那张、配料图标也按进页后异步加载，不阻塞——见 showRolledBackground）
     else this.enterGame();
   }
 

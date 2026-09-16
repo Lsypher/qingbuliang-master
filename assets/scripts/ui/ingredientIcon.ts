@@ -46,21 +46,38 @@ export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | nu
 }
 
 /**
- * 建一个图标节点（挂 Sprite）并异步填上对应配料图标；可选染色用于区分撞脸项。
+ * 建一个图标节点（挂 Sprite）并填上对应配料图标；可选染色用于区分撞脸项。
  * 图标尺寸由调用方给定，节点锚点居中，方便横排对齐。
+ *
+ * `preloadedFrame` 为已预载到手的帧（过场期间先加载的那一份）：
+ * - 传 `undefined` → 走正常异步加载（标盘之外、缓存未热的路径才用）；
+ * - 传**有效帧** → 同步贴上，配料盘建格子的那一帧图标就位，不出现逐格冒出的过程；
+ * - 传 `null` → 预载失败，沿用既有兜底（只显示中文标签），这一格不阻塞进局。
  */
-export function createIngredientIcon(parent: Node, id: string, size: number, name = 'Icon'): Node {
+export function createIngredientIcon(
+  parent: Node,
+  id: string,
+  size: number,
+  name = 'Icon',
+  preloadedFrame?: SpriteFrame | null,
+): Node {
   const node = createUiNode(parent, name, size, size);
   const sprite = node.addComponent(Sprite);
   // 用节点尺寸而非图片自身尺寸：图标被拉到格子/行里的大小，而不是变成 256×256
   sprite.sizeMode = Sprite.SizeMode.CUSTOM;
   const tint = ingredientTint(id);
   if (tint) sprite.color = tint;
-  loadIngredientFrame(id, (frame) => {
-    // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
-    // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
-    if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
-  });
+  if (preloadedFrame === undefined) {
+    loadIngredientFrame(id, (frame) => {
+      // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
+      // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
+      if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
+    });
+  } else if (preloadedFrame) {
+    // 预载已到手：同步贴上，首帧就位
+    sprite.spriteFrame = preloadedFrame;
+  }
+  // preloadedFrame === null：预载失败，沿用兜底（不赋图，只显示中文标签）
   return node;
 }
 

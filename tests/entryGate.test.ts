@@ -20,6 +20,14 @@ const LIMITS = { minShowMs: PREPARE_MIN_SHOW_MS, timeoutMs: PREPARE_TIMEOUT_MS }
 const NOTHING_SETTLED = 0;
 const NOTHING_TO_PRELOAD = 0;
 
+/**
+ * 接真预载后的真实总量：12 格配料图标 + 1 张本局背景。
+ * 测试里它只是个"总项数"的代表值，用真实数以便读起来对应到这一局的预载范围。
+ */
+const PRELOAD_TOTAL = 13;
+/** 预载全部有结果时，已决数 = 总项数 */
+const ALL_SETTLED = PRELOAD_TOTAL;
+
 describe('准备过场的放行判据', () => {
   it('节拍是 spec 定下的那组数：最短展示不少于 1200ms，硬超时在它之后', () => {
     expect(PREPARE_MIN_SHOW_MS).toBeGreaterThanOrEqual(1200);
@@ -37,5 +45,32 @@ describe('准备过场的放行判据', () => {
     for (const elapsedMs of [PREPARE_MIN_SHOW_MS, PREPARE_MIN_SHOW_MS + 1, PREPARE_TIMEOUT_MS - 1]) {
       expect(decideEntry(elapsedMs, NOTHING_SETTLED, NOTHING_TO_PRELOAD, LIMITS)).toBe('go');
     }
+  });
+
+  it('未到最短展示时长、且预载也还没完 → 等待', () => {
+    // 这条是接真预载后的核心分支：两项都没满，哪怕只差一项没回来也要等
+    const elapsedMs = PREPARE_MIN_SHOW_MS - 1;
+    expect(decideEntry(elapsedMs, 0, PRELOAD_TOTAL, LIMITS)).toBe('wait');
+    expect(decideEntry(elapsedMs, PRELOAD_TOTAL - 1, PRELOAD_TOTAL, LIMITS)).toBe('wait');
+  });
+
+  it('预载已全部完成、但还没到最短展示时长 → 等待', () => {
+    // 预载先回来也不能放行：准备时间给玩家的那段固定节拍必须走满，计时不偷跑
+    const elapsedMs = PREPARE_MIN_SHOW_MS - 1;
+    expect(decideEntry(elapsedMs, ALL_SETTLED, PRELOAD_TOTAL, LIMITS)).toBe('wait');
+  });
+
+  it('预载已全部完成、且已过最短展示时长 → 放行', () => {
+    // 两项都满：放行 = max(最短展示, 预载完成)，这条命中的是"预载完成"那一侧
+    for (const elapsedMs of [PREPARE_MIN_SHOW_MS, PREPARE_MIN_SHOW_MS + 1, PREPARE_TIMEOUT_MS - 1]) {
+      expect(decideEntry(elapsedMs, ALL_SETTLED, PRELOAD_TOTAL, LIMITS)).toBe('go');
+    }
+  });
+
+  it('已过硬超时、无论预载完成与否 → 放行', () => {
+    // 超时那条先判且不看预载状态：预载再慢、再有几项永远不回调，到点也必须放行
+    expect(decideEntry(PREPARE_TIMEOUT_MS, 0, PRELOAD_TOTAL, LIMITS)).toBe('go');
+    expect(decideEntry(PREPARE_TIMEOUT_MS, Math.floor(PRELOAD_TOTAL / 2), PRELOAD_TOTAL, LIMITS)).toBe('go');
+    expect(decideEntry(PREPARE_TIMEOUT_MS, ALL_SETTLED, PRELOAD_TOTAL, LIMITS)).toBe('go');
   });
 });
