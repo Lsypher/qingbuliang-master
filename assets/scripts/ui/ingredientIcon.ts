@@ -10,6 +10,24 @@ import { createOutlinedText, createUiNode, loadSpriteFrame, UI_COLOR } from './u
 export const INGREDIENT_DIR = 'art/ingredients';
 
 /**
+ * 配料图标帧的共享缓存：按 id 存 SpriteFrame（加载失败记 null）。
+ *
+ * 谁拥有资源谁预载：过场期间由配料盘统一把 12 张图加载进来（见 IngredientTray.preloadIcons，
+ * 它内部走的就是下面的 `loadIngredientFrame`，结果会自动写进这份缓存）。订单卡、碗、跟手幽灵等
+ * 所有用到配料图标的地方，都从这份缓存**同步**取用——过场放行时早已就绪，进单局页那一帧就位、
+ * 不逐格冒出，与背景预载同理。只有"还没预载到"才退回异步加载（兜底，理论上不会走到）。
+ *
+ * 用模块级单例而非各组件各自缓存：避免配料盘、订单卡各维护一份、彼此不同步；
+ * 全部图标的预载与取用都收口到本文件。
+ */
+const ingredientFrameCache = new Map<string, SpriteFrame | null>();
+
+/** 取某配料已预载到手的帧：未预载返回 undefined、预载失败返回 null、成功返回帧 */
+function getCachedIngredientFrame(id: string): SpriteFrame | null | undefined {
+  return ingredientFrameCache.get(id);
+}
+
+/**
  * 靠颜色区分"撞脸"项：红豆与绿豆共用同一张 Beans 图标，
  * 这里把绿豆染成绿色、红豆保持原色偏红，肉眼即可分辨（标签也兜底区分）。
  */
@@ -36,6 +54,9 @@ const CHECKED_ALPHA = 110;
  */
 export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | null) => void): void {
   loadSpriteFrame(`${INGREDIENT_DIR}/${id}`, (frame, error) => {
+    // 无论成败都写进共享缓存：成功存入帧、失败存 null 以标记"已决"，
+    // 订单卡等下游就能同步识别"加载过但没拿到"，不重复读盘也不阻塞进局。
+    ingredientFrameCache.set(id, frame);
     if (!frame) {
       console.warn('[ingredientIcon] 图标加载失败，已跳过', id, error);
       onLoad(null);
@@ -67,17 +88,29 @@ export function createIngredientIcon(
   sprite.sizeMode = Sprite.SizeMode.CUSTOM;
   const tint = ingredientTint(id);
   if (tint) sprite.color = tint;
-  if (preloadedFrame === undefined) {
-    loadIngredientFrame(id, (frame) => {
-      // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
-      // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
-      if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
-    });
-  } else if (preloadedFrame) {
-    // 预载已到手：同步贴上，首帧就位
-    sprite.spriteFrame = preloadedFrame;
+  // 贴图优先级：显式传入的预载帧 > 共享缓存里已过场预载到手的帧 > 异步加载兜底。
+  // 共享缓存在过场期间由配料盘统一预载入（见 IngredientTray.preloadIcons，内部走 loadIngredientFrame 写缓存），
+  // 订单卡、碗、跟手幽灵都从这份缓存同步取用，进单局页那一帧就位、不逐格冒出。
+  if (preloadedFrame !== undefined) {
+    // 显式传了预载帧：成功贴图、失败（null）只留中文标签兜底
+    if (preloadedFrame) sprite.spriteFrame = preloadedFrame;
+    // preloadedFrame === null：预载失败，沿用兜底（不赋图，只显示中文标签）
+  } else {
+    const cached = getCachedIngredientFrame(id);
+    if (cached) {
+      // 共享缓存里有帧：同步贴上，首帧就位
+      sprite.spriteFrame = cached;
+    } else if (cached === null) {
+      // 共享缓存已标记为"加载失败"：只留中文标签兜底，不重复读盘、不阻塞进局
+    } else {
+      // 还没预载到（理论上过场放行时早已就绪，这里只是兜底）：异步加载并写回缓存
+      loadIngredientFrame(id, (frame) => {
+        // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
+        // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
+        if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
+      });
+    }
   }
-  // preloadedFrame === null：预载失败，沿用兜底（不赋图，只显示中文标签）
   return node;
 }
 

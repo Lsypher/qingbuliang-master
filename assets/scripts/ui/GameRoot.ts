@@ -91,11 +91,16 @@ export class GameRoot extends Component {
    *
    * 同样带存在性判断、同样只兜"场景漏挂"；留下引用是为进单局前请它交出 12 格图标的预载任务
    * （见 showGame）。本组件 `onLoad` 此时还没跑（单局页还隐藏），但组件实例已存在，getComponent 能取到。
+   *
+   * 用 `getComponentInChildren` 而非 `getComponent`：配料盘组件实际挂在 `GamePage` 的子节点
+   * `TrayArea` 上，只查自身会取不到（`this.tray` 变 null、`preloadIcons()` 永不执行，
+   * 于是底部配料与顶部订单卡的图标都退回异步加载、慢几帧）。`getComponentInChildren` 递归查整棵子树，
+   * 组件挂在 `GamePage` 自身或任意子节点都能找到，属更稳的兜底。
    */
   private assembleTray(): void {
     const gamePage = this.gamePage;
     if (!gamePage) return;
-    this.tray = gamePage.getComponent(IngredientTray) ?? null;
+    this.tray = gamePage.getComponent(IngredientTray) ?? gamePage.getComponentInChildren(IngredientTray) ?? null;
   }
 
   /**

@@ -1,4 +1,4 @@
-import { _decorator, Button, Component, EventTouch, Node, SpriteFrame, UITransform, Vec3, view } from 'cc';
+import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3, view } from 'cc';
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
 import { createIngredientIcon, loadIngredientFrame } from './ingredientIcon';
@@ -62,12 +62,6 @@ export class IngredientTray extends Component {
   private slotNodes = new Map<string, Node>();
   /** 全盘同时只认一根手指的拖动，第二根手指的按下直接忽略 */
   private activeDrag: ActiveDrag | null = null;
-  /**
-   * 过场期间预载到的图标帧缓存：id → 帧（失败为 null）。
-   * 配料盘建格子时同步取用，首帧就位、不逐格冒出；缓存随组件实例长存，
-   * 重开时图标已在资源层命中缓存、这里也还是热的，不会重复读盘。
-   */
-  private iconCache = new Map<string, SpriteFrame | null>();
 
   protected onLoad(): void {
     this.buildSlots();
@@ -102,8 +96,9 @@ export class IngredientTray extends Component {
 
       // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）
       // 图标上移，避免和大字号标签在格子内重叠
-      // 预载已到手的图标同步贴上：首帧就位，不出现逐格冒出的过程；未预载/预载失败回退异步加载或只留标签
-      const slotIcon = createIngredientIcon(slot, ingredient.id, 52, 'Icon', this.iconCache.get(ingredient.id));
+      // 图标走统一入口 createIngredientIcon：它从 ingredientIcon 的共享缓存同步取过场预载好的帧，
+      // 首帧就位、不逐格冒出；缓存未命中（理论上过场放行时早已就绪）才退回异步加载兜底
+      const slotIcon = createIngredientIcon(slot, ingredient.id, 52, 'Icon');
       slotIcon.setPosition(0, 16, 0);
       // 汤底与小料用不同字色区分，避免一眼看混两类
       const labelColor = ingredient.category === 'base' ? UI_COLOR.textAccent : UI_COLOR.textPrimary;
@@ -143,17 +138,17 @@ export class IngredientTray extends Component {
    * （缺图各有各的兜底，不在这里再判一次）。每项**有结果**（成功或失败）时调用 `done`——
    * 失败也计入已决并放行，缺的那格沿用既有兜底（只显示中文标签），不阻塞进局。
    *
-   * 帧加载到手就进 `iconCache`：过场结束、配料盘建格子时同步贴上，首帧就位、不逐格冒出。
+   * 帧加载到手就进共享缓存（`ingredientIcon` 的模块级缓存，由 `loadIngredientFrame` 自动写入）：
+   * 过场结束、配料盘建格子时由 `createIngredientIcon` 同步取用，首帧就位、不逐格冒出。
+   * 配料盘与订单卡、碗共用同一份缓存，不各维护一份、避免不同步。
    * 本方法在过场开始前被组合根调用，那时本组件 `onLoad` 还没跑（单局页还隐藏），
    * 所以这里不依赖任何由 `onLoad` 建立的字段。
    */
   preloadIcons(): PreloadTask[] {
     return ALL_INGREDIENTS.map((ingredient) => (done) => {
-      loadIngredientFrame(ingredient.id, (frame) => {
-        // 成功入库帧、失败入库 null：建格子时统一从这里取，失败那格自然只留标签
-        this.iconCache.set(ingredient.id, frame);
-        done();
-      });
+      // 统一走 loadIngredientFrame：结果会自动写进共享缓存，建格子时由 createIngredientIcon 同步取用。
+      // 这里不自己再存一份缓存——配料盘、订单卡共用同一份，避免两份数据不同步。
+      loadIngredientFrame(ingredient.id, () => done());
     });
   }
 
