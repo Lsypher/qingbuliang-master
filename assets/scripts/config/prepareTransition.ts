@@ -37,7 +37,7 @@ export const PREPARE_SWEEP_PERIOD_MS = 1_400;
  * 用三角波而非正弦：不引入三角函数、便宜且对称；相位在 [0,1] 内稳定循环，
  * 重入过场时 `elapsedMs` 归零，相位也从 0（左端）重新起步——连进多次观感一致。
  */
-export function sweepPhase(elapsedMs: number, periodMs: number = PREPARE_SWEEP_PERIOD_MS): number {
+export function sweepPhase(elapsedMs: number, periodMs: number): number {
   const cycle = (((elapsedMs % periodMs) + periodMs) % periodMs) / periodMs; // 0..1
   // 前半段上行、后半段下行：0→1→0，左右往返
   return cycle < 0.5 ? cycle * 2 : 2 - cycle * 2;
