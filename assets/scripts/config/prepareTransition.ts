@@ -20,3 +20,25 @@ export const PREPARE_MIN_SHOW_MS = 1_200;
  * 它不看预载状态，唯一目的就是"别把玩家困在过场里"。
  */
 export const PREPARE_TIMEOUT_MS = 3_000;
+
+/**
+ * 不定式进度条一个来回的时长（毫秒）：扫动段从左端走到右端、再走回左端算一个周期。
+ * 与最短展示时长错开，避免两者凑成整数倍后观感像"卡帧"；要调快慢改这里，不动绘制逻辑。
+ */
+export const PREPARE_SWEEP_PERIOD_MS = 1_400;
+
+/**
+ * 不定式进度条"扫到哪了"：把过场经过时间映射成 0→1→0 的归一化相位（三角波）。
+ *
+ * 纯函数、不碰引擎（只做算术），所以能被 vitest 直接锁住；过场每帧把 `elapsedMs` 喂进来，
+ * 得到当前扫动位置，再由绘制层把相位换算成扫动段的横移偏移。
+ * 端点（0 与 1）处速度为 0、无跳变，左右往返是匀速的，不会"啪"地弹回。
+ *
+ * 用三角波而非正弦：不引入三角函数、便宜且对称；相位在 [0,1] 内稳定循环，
+ * 重入过场时 `elapsedMs` 归零，相位也从 0（左端）重新起步——连进多次观感一致。
+ */
+export function sweepPhase(elapsedMs: number, periodMs: number = PREPARE_SWEEP_PERIOD_MS): number {
+  const cycle = (((elapsedMs % periodMs) + periodMs) % periodMs) / periodMs; // 0..1
+  // 前半段上行、后半段下行：0→1→0，左右往返
+  return cycle < 0.5 ? cycle * 2 : 2 - cycle * 2;
+}
