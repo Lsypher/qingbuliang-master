@@ -52,7 +52,7 @@
     },
     "autoReleaseAssets": false,
     "_globals": {
-      "__id__": 100
+      "__id__": 97
     },
     "_id": "318ad35a-868f-4bdb-9572-ad08dc6aa4c1"
   },
@@ -78,16 +78,16 @@
     "_active": true,
     "_components": [
       {
+        "__id__": 93
+      },
+      {
+        "__id__": 94
+      },
+      {
+        "__id__": 95
+      },
+      {
         "__id__": 96
-      },
-      {
-        "__id__": 97
-      },
-      {
-        "__id__": 98
-      },
-      {
-        "__id__": 99
       }
     ],
     "_prefab": null,
@@ -343,7 +343,7 @@
     "_active": true,
     "_components": [
       {
-        "__id__": 95
+        "__id__": 92
       }
     ],
     "_prefab": null,
@@ -2399,21 +2399,18 @@
       },
       {
         "__id__": 86
-      },
-      {
-        "__id__": 89
       }
     ],
     "_active": false,
     "_components": [
       {
-        "__id__": 92
+        "__id__": 89
       },
       {
-        "__id__": 93
+        "__id__": 90
       },
       {
-        "__id__": 94
+        "__id__": 91
       }
     ],
     "_prefab": null,
@@ -3538,138 +3535,6 @@
     "_id": "85piKe/BhAi788Po+4Yt/t"
   },
   {
-    "__type__": "cc.Node",
-    "_name": "CreditLine",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "_parent": {
-      "__id__": 63
-    },
-    "_children": [],
-    "_active": true,
-    "_components": [
-      {
-        "__id__": 90
-      },
-      {
-        "__id__": 91
-      }
-    ],
-    "_prefab": null,
-    "_lpos": {
-      "__type__": "cc.Vec3",
-      "x": 0,
-      "y": -400,
-      "z": 0
-    },
-    "_lrot": {
-      "__type__": "cc.Quat",
-      "x": 0,
-      "y": 0,
-      "z": 0,
-      "w": 1
-    },
-    "_lscale": {
-      "__type__": "cc.Vec3",
-      "x": 1,
-      "y": 1,
-      "z": 1
-    },
-    "_mobility": 0,
-    "_layer": 33554432,
-    "_euler": {
-      "__type__": "cc.Vec3",
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "_id": "efh6VJo1dKYLIq+gO+3ZZr"
-  },
-  {
-    "__type__": "cc.UITransform",
-    "_name": "",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "node": {
-      "__id__": 89
-    },
-    "_enabled": true,
-    "__prefab": null,
-    "_contentSize": {
-      "__type__": "cc.Size",
-      "width": 160,
-      "height": 60
-    },
-    "_anchorPoint": {
-      "__type__": "cc.Vec2",
-      "x": 0.5,
-      "y": 0.5
-    },
-    "_id": "82tJdnimJNuLzG8H4Mr+oM"
-  },
-  {
-    "__type__": "cc.Label",
-    "_name": "",
-    "_objFlags": 0,
-    "__editorExtras__": {},
-    "node": {
-      "__id__": 89
-    },
-    "_enabled": true,
-    "__prefab": null,
-    "_customMaterial": null,
-    "_srcBlendFactor": 2,
-    "_dstBlendFactor": 4,
-    "_color": {
-      "__type__": "cc.Color",
-      "r": 178,
-      "g": 190,
-      "b": 208,
-      "a": 255
-    },
-    "_string": "素材致谢：图标 原创手绘（玩家自绘）",
-    "_horizontalAlign": 1,
-    "_verticalAlign": 1,
-    "_actualFontSize": 0,
-    "_fontSize": 18,
-    "_fontFamily": "Arial",
-    "_lineHeight": 23,
-    "_overflow": 0,
-    "_enableWrapText": true,
-    "_font": null,
-    "_isSystemFontUsed": true,
-    "_spacingX": 0,
-    "_isItalic": false,
-    "_isBold": false,
-    "_isUnderline": false,
-    "_underlineHeight": 2,
-    "_cacheMode": 0,
-    "_enableOutline": false,
-    "_outlineColor": {
-      "__type__": "cc.Color",
-      "r": 0,
-      "g": 0,
-      "b": 0,
-      "a": 255
-    },
-    "_outlineWidth": 2,
-    "_enableShadow": false,
-    "_shadowColor": {
-      "__type__": "cc.Color",
-      "r": 0,
-      "g": 0,
-      "b": 0,
-      "a": 255
-    },
-    "_shadowOffset": {
-      "__type__": "cc.Vec2",
-      "x": 2,
-      "y": 2
-    },
-    "_shadowBlur": 2,
-    "_id": "45Q9g2+tRD17Wmf1/kCQO+"
-  },
-  {
     "__type__": "cc.UITransform",
     "_name": "",
     "_objFlags": 0,
@@ -3856,7 +3721,7 @@
       "__id__": 61
     },
     "resultView": {
-      "__id__": 94
+      "__id__": 91
     },
     "startButton": {
       "__id__": 33
@@ -3869,28 +3734,28 @@
   {
     "__type__": "cc.SceneGlobals",
     "ambient": {
-      "__id__": 101
+      "__id__": 98
     },
     "shadows": {
-      "__id__": 102
+      "__id__": 99
     },
     "_skybox": {
-      "__id__": 103
+      "__id__": 100
     },
     "fog": {
-      "__id__": 104
+      "__id__": 101
     },
     "octree": {
-      "__id__": 105
+      "__id__": 102
     },
     "skin": {
-      "__id__": 106
+      "__id__": 103
     },
     "lightProbeInfo": {
-      "__id__": 107
+      "__id__": 104
     },
     "postSettings": {
-      "__id__": 108
+      "__id__": 105
     },
     "bakedWithStationaryMainLight": false,
     "bakedWithHighpLightmap": false

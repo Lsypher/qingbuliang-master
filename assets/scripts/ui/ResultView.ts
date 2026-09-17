@@ -42,7 +42,6 @@ export class ResultView extends Component {
     setLabelText(this.node, 'ComboLine', `${STRINGS.result.comboLabel} ${finished.bestCombo}`);
     setLabelText(this.node, 'BestLine', `${STRINGS.bestScoreLabel} ${record.best}`);
     setLabelText(this.node, 'NewRecordLine', STRINGS.result.newRecord);
-    setLabelText(this.node, 'CreditLine', `${STRINGS.creditLabel}：${STRINGS.creditLine}`);
 
     // 按钮文字也在这页上，同样从文案表取（与开始页的开摊按钮一个规矩）
     const restartButton = this.node.getChildByName('RestartButton');
