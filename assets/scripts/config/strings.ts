@@ -66,7 +66,7 @@ export const STRINGS = {
 
   /** 素材致谢：结算页一行小字，正文与 CREDITS.md 登记的内容对应 */
   creditLabel: '素材致谢',
-  creditLine: '图标 Microsoft Fluent Emoji（MIT）',
+  creditLine: '图标 原创手绘（玩家自绘）',
 } as const;
 
 export type Strings = typeof STRINGS;

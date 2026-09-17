@@ -33,26 +33,24 @@
 
 ## 配料图标
 
-取 Microsoft Fluent Emoji 的 **3D 风格** PNG（256×256、带透明通道），许可 **MIT**，仓库 `microsoft/fluentui-emoji`（分支 `main`）。文件名即配料 id，放在 `assets/resources/art/ingredients/`，换图（同名替换）不用动代码、也不用回编辑器接线。
+玩家自绘的**透明底 PNG**，文件名即配料 id，放在 `assets/resources/art/ingredients/`，换图（同名替换）不用动代码、也不用回编辑器接线。图标为原创作品（非第三方素材），无需对外署名；游戏内致谢处（`STRINGS.creditLine`）登记为"原创手绘（玩家自绘）"。
 
-按 `docs/adr/0001-asset-sourcing-and-licensing.md`：MIT 不强制署名，但本项目统一在游戏内致谢处（见 `STRINGS.creditLabel`）与 `CREDITS.md` 登记来源。
+| 配料 id | 中文标签 | 文件 |
+| --- | --- | --- |
+| `coconut_milk` | 椰奶 | `coconut_milk.png` |
+| `coconut_water` | 椰子水 | `coconut_water.png` |
+| `brown_sugar_water` | 红糖水 | `brown_sugar_water.png` |
+| `red_bean` | 红豆 | `red_bean.png` |
+| `mung_bean` | 绿豆 | `mung_bean.png` |
+| `sago` | 西米 | `sago.png` |
+| `taro_ball` | 芋圆 | `taro_ball.png` |
+| `watermelon` | 西瓜丁 | `watermelon.png` |
+| `mango` | 芒果丁 | `mango.png` |
+| `macaroni` | 通心粉 | `macaroni.png` |
+| `grass_jelly` | 仙草冻 | `grass_jelly.png` |
+| `quail_egg` | 鹌鹑蛋 | `quail_egg.png` |
 
-| 配料 id | 中文标签 | Fluent Emoji 素材名 | 文件 |
-| --- | --- | --- | --- |
-| `coconut_milk` | 椰奶 | Glass of milk | `coconut_milk.png` |
-| `coconut_water` | 椰子水 | Coconut | `coconut_water.png` |
-| `brown_sugar_water` | 红糖水 | Bubble tea | `brown_sugar_water.png` |
-| `red_bean` | 红豆 | Beans（染暖红区分） | `red_bean.png` |
-| `mung_bean` | 绿豆 | Beans（同图，染绿区分） | `mung_bean.png` |
-| `sago` | 西米 | Cooked rice | `sago.png` |
-| `taro_ball` | 芋圆 | Dango | `taro_ball.png` |
-| `watermelon` | 西瓜丁 | Watermelon | `watermelon.png` |
-| `mango` | 芒果丁 | Mango | `mango.png` |
-| `macaroni` | 通心粉 | Spaghetti | `macaroni.png` |
-| `grass_jelly` | 仙草冻 | Custard | `grass_jelly.png` |
-| `quail_egg` | 鹌鹑蛋 | Egg | `quail_egg.png` |
-
-红豆与绿豆共用 `Beans` 图标：绿豆染绿、红豆保持原色偏暖红，靠颜色即可区分"撞脸"项（中文标签一并兜底）。椰奶（牛奶杯）与椰子水（椰子）本就是不同图标，无歧义。
+红豆与绿豆现各有独立手绘图，不再共用图标、也不再靠染色区分；图标颜色直接由美术原图决定。椰奶（牛奶杯）与椰子水（椰子）本就是不同图标，无歧义。
 
 ## 开始页界面图（4 个文件）
 

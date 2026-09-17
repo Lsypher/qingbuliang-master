@@ -1,9 +1,9 @@
-import { Color, Node, Sprite, SpriteFrame } from 'cc';
+import { Color, Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import { STRINGS } from '../config/strings';
 import { createOutlinedText, createUiNode, loadSpriteFrame, UI_COLOR } from './uiFactory';
 
 /**
- * 配料图标目录：12 张 Fluent Emoji 3D PNG，文件名即配料 id。
+ * 配料图标目录：12 张原创手绘透明底 PNG，文件名即配料 id。
  * 与背景图同理——换图（同名替换）不动代码、也无需回编辑器接线；
  * 只有增删配料才需要改 `config/ingredients.ts`。
  */
@@ -28,18 +28,9 @@ function getCachedIngredientFrame(id: string): SpriteFrame | null | undefined {
 }
 
 /**
- * 靠颜色区分"撞脸"项：红豆与绿豆共用同一张 Beans 图标，
- * 这里把绿豆染成绿色、红豆保持原色偏红，肉眼即可分辨（标签也兜底区分）。
+ * 每张配料都是独立手绘图（含红豆 / 绿豆），无需再靠染色区分"撞脸"项，
+ * 因此不再设置图标染色；图标颜色直接由美术原图决定。
  */
-const INGREDIENT_TINT: ReadonlyMap<string, Color> = new Map([
-  ['red_bean', new Color(255, 140, 130, 255)],
-  ['mung_bean', new Color(120, 215, 110, 255)],
-]);
-
-/** 取某配料的图标染色（无染色返回 null） */
-export function ingredientTint(id: string): Color | null {
-  return INGREDIENT_TINT.get(id) ?? null;
-}
 
 /**
  * "已在碗里"的图标压暗到这个不透明度：还能认出是什么，但明显退到背景里去。
@@ -67,8 +58,8 @@ export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | nu
 }
 
 /**
- * 建一个图标节点（挂 Sprite）并填上对应配料图标；可选染色用于区分撞脸项。
- * 图标尺寸由调用方给定，节点锚点居中，方便横排对齐。
+ * 建一个图标节点（挂 Sprite）并填上对应配料图标。
+ * `size` 是格子边长：图标按原图比例 contain 进格子（不拉伸变形），节点锚点居中，方便横排对齐。
  *
  * `preloadedFrame` 为已预载到手的帧（过场期间先加载的那一份）：
  * - 传 `undefined` → 走正常异步加载（标盘之外、缓存未热的路径才用）；
@@ -84,22 +75,34 @@ export function createIngredientIcon(
 ): Node {
   const node = createUiNode(parent, name, size, size);
   const sprite = node.addComponent(Sprite);
-  // 用节点尺寸而非图片自身尺寸：图标被拉到格子/行里的大小，而不是变成 256×256
+  // 用 CUSTOM：图标被拉到格子大小；但实际尺寸由下面 apply 按原图比例收成 contain，
+  // 避免手绘图内容非正方形时被塞进正方形格子压扁/拉长（auto-trim 后会裁到内容包围盒）。
   sprite.sizeMode = Sprite.SizeMode.CUSTOM;
-  const tint = ingredientTint(id);
-  if (tint) sprite.color = tint;
+
+  // 贴帧并做 contain 适配：保持原图宽高比，整体塞进 size×size 的格子内（取较小缩放），不拉伸。
+  const apply = (frame: SpriteFrame): void => {
+    sprite.spriteFrame = frame;
+    const iw = frame.width;
+    const ih = frame.height;
+    if (iw > 0 && ih > 0) {
+      const scale = Math.min(size / iw, size / ih);
+      const transform = node.getComponent(UITransform);
+      if (transform) transform.setContentSize(iw * scale, ih * scale);
+    }
+  };
+
   // 贴图优先级：显式传入的预载帧 > 共享缓存里已过场预载到手的帧 > 异步加载兜底。
   // 共享缓存在过场期间由配料盘统一预载入（见 IngredientTray.preloadIcons，内部走 loadIngredientFrame 写缓存），
   // 订单卡、碗、跟手幽灵都从这份缓存同步取用，进单局页那一帧就位、不逐格冒出。
   if (preloadedFrame !== undefined) {
     // 显式传了预载帧：成功贴图、失败（null）只留中文标签兜底
-    if (preloadedFrame) sprite.spriteFrame = preloadedFrame;
+    if (preloadedFrame) apply(preloadedFrame);
     // preloadedFrame === null：预载失败，沿用兜底（不赋图，只显示中文标签）
   } else {
     const cached = getCachedIngredientFrame(id);
     if (cached) {
       // 共享缓存里有帧：同步贴上，首帧就位
-      sprite.spriteFrame = cached;
+      apply(cached);
     } else if (cached === null) {
       // 共享缓存已标记为"加载失败"：只留中文标签兜底，不重复读盘、不阻塞进局
     } else {
@@ -107,7 +110,7 @@ export function createIngredientIcon(
       loadIngredientFrame(id, (frame) => {
         // 资源是异步加载的：等待期间节点/组件可能已被销毁（跟手幽灵抬手即拆、图标行重建等）。
         // 销毁后 sprite.node 会被置空，此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验。
-        if (frame && node.isValid && sprite.isValid) sprite.spriteFrame = frame;
+        if (frame && node.isValid && sprite.isValid) apply(frame);
       });
     }
   }
@@ -148,15 +151,18 @@ function markChecked(icon: Node, iconSize: number): void {
   const sprite = icon.getComponent(Sprite);
   if (sprite) sprite.color = new Color(sprite.color.r, sprite.color.g, sprite.color.b, CHECKED_ALPHA);
 
+  // 勾按图标真实尺寸定位（图标已按比例 contain 进格子，尺寸可能小于格子），落在右上角不挡配料
+  const transform = icon.getComponent(UITransform);
+  const w = transform ? transform.width : iconSize;
+  const h = transform ? transform.height : iconSize;
   const check = createOutlinedText(
     icon,
     'OrderCheck',
     STRINGS.orderCheckMark,
-    Math.round(iconSize * 0.5),
+    Math.round(Math.min(w, h) * 0.5),
     UI_COLOR.orderCheck,
     UI_COLOR.orderCheckShadow,
-    iconSize,
+    Math.min(w, h),
   );
-  // 落在图标右上角：勾只占角上一小块，不挡住配料本身
-  check.setPosition(iconSize * 0.28, iconSize * 0.28, 0);
+  check.setPosition(w * 0.28, h * 0.28, 0);
 }

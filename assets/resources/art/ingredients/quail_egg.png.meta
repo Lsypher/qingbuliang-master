@@ -22,7 +22,7 @@
         "visible": false,
         "minfilter": "linear",
         "magfilter": "linear",
-        "mipfilter": "none",
+        "mipfilter": "linear",
         "anisotropy": 0
       },
       "ver": "1.0.22",
@@ -42,11 +42,11 @@
         "trimThreshold": 1,
         "rotated": false,
         "offsetX": 0,
-        "offsetY": 0.5,
-        "trimX": 57,
-        "trimY": 32,
-        "width": 142,
-        "height": 191,
+        "offsetY": -0.5,
+        "trimX": 16,
+        "trimY": 47,
+        "width": 224,
+        "height": 163,
         "rawWidth": 256,
         "rawHeight": 256,
         "borderTop": 0,
@@ -60,17 +60,17 @@
         "meshType": 0,
         "vertices": {
           "rawPosition": [
-            -71,
-            -95.5,
+            -112,
+            -81.5,
             0,
-            71,
-            -95.5,
+            112,
+            -81.5,
             0,
-            -71,
-            95.5,
+            -112,
+            81.5,
             0,
-            71,
-            95.5,
+            112,
+            81.5,
             0
           ],
           "indexes": [
@@ -82,33 +82,33 @@
             3
           ],
           "uv": [
-            57,
-            224,
-            199,
-            224,
-            57,
-            33,
-            199,
-            33
+            16,
+            209,
+            240,
+            209,
+            16,
+            46,
+            240,
+            46
           ],
           "nuv": [
-            0.22265625,
-            0.12890625,
-            0.77734375,
-            0.12890625,
-            0.22265625,
-            0.875,
-            0.77734375,
-            0.875
+            0.0625,
+            0.1796875,
+            0.9375,
+            0.1796875,
+            0.0625,
+            0.81640625,
+            0.9375,
+            0.81640625
           ],
           "minPos": [
-            -71,
-            -95.5,
+            -112,
+            -81.5,
             0
           ],
           "maxPos": [
-            71,
-            95.5,
+            112,
+            81.5,
             0
           ]
         },
@@ -127,7 +127,7 @@
   },
   "userData": {
     "type": "sprite-frame",
-    "fixAlphaTransparencyArtifacts": false,
+    "fixAlphaTransparencyArtifacts": true,
     "hasAlpha": true,
     "redirect": "b702f50b-7800-4d9e-8b11-588c6185a567@6c48a"
   }
