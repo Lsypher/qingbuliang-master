@@ -6,7 +6,7 @@ import { createLabel, createUiNode, paintPanel, PreloadTask, UI_COLOR, visibleWi
 
 const { ccclass } = _decorator;
 
-/** 配料盘格子排布：4 列 × 3 行正好填满 12 格 */
+/** 配料盘格子排布：4 列 × 3 行正好填满 12 格；列距 4 × 180 = 720，宽屏下正好铺满设计宽度 */
 const COLUMN_COUNT = 4;
 const COLUMN_SPACING = 180;
 const ROW_SPACING = 118;
@@ -94,10 +94,8 @@ export class IngredientTray extends Component {
       const slot = createUiNode(this.node, `Slot_${ingredient.id}`, slotWidth, SLOT_HEIGHT, y, x);
       paintPanel(slot, UI_COLOR.panel, UI_COLOR.panelBorder);
 
-      // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）
-      // 图标上移，避免和大字号标签在格子内重叠
-      // 图标走统一入口 createIngredientIcon：它从 ingredientIcon 的共享缓存同步取过场预载好的帧，
-      // 首帧就位、不逐格冒出；缓存未命中（理论上过场放行时早已就绪）才退回异步加载兜底
+      // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）；
+      // 图标位置略上移，给下方标签留出格子内的高度，两者不重叠
       const slotIcon = createIngredientIcon(slot, ingredient.id, 52, 'Icon');
       slotIcon.setPosition(0, 16, 0);
       // 汤底与小料用不同字色区分，避免一眼看混两类
@@ -146,8 +144,6 @@ export class IngredientTray extends Component {
    */
   preloadIcons(): PreloadTask[] {
     return ALL_INGREDIENTS.map((ingredient) => (done) => {
-      // 统一走 loadIngredientFrame：结果会自动写进共享缓存，建格子时由 createIngredientIcon 同步取用。
-      // 这里不自己再存一份缓存——配料盘、订单卡共用同一份，避免两份数据不同步。
       loadIngredientFrame(ingredient.id, () => done());
     });
   }

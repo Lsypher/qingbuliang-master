@@ -57,7 +57,7 @@ export class HudView extends Component {
     const track = createUiNode(this.node, 'CountdownBar', BAR_WIDTH, BAR_HEIGHT, 566);
     paintPanel(track, UI_COLOR.barTrack);
 
-    // 整条先画满一次，之后只靠缩放和位移表示剩余比例——比每帧重画 Graphics 便宜
+    // 先按满宽画一次，之后只改缩放与位移
     const fill = createUiNode(track, 'CountdownBarFill', BAR_WIDTH, BAR_HEIGHT);
     paintPanel(fill, UI_COLOR.barFill);
     this.barFillNode = fill;

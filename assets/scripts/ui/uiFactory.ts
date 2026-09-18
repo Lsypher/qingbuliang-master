@@ -1,7 +1,7 @@
 import { Color, Graphics, Label, Layers, Node, SpriteFrame, UIOpacity, UITransform, Vec3, resources, tween, view } from 'cc';
 import { SCREEN_WIDTH } from '../config/layout';
 
-/** 界面统一用色：改主题只改这里（08/09 切片会换成素材配色） */
+/** 界面统一用色：改主题只改这里；素材配色到位前先用这套程序化配色 */
 export const UI_COLOR = {
   textPrimary: new Color(255, 255, 255, 255),
   textMuted: new Color(178, 190, 208, 255),

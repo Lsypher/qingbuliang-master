@@ -15,7 +15,7 @@ const ORDER_ICON_GAP = 8;
  * 订单卡：显示当前顾客要的那一碗，以及已经放进去几项。
  * 只订阅渲染事件重绘；已放入碗中的项在图标行里打勾变暗，剩下的保持原样。
  *
- * 三行内容整体压在下半区：顶部那条留给 04 切片的倒计时（数字 + 进度条）与分数行。
+ * 三行内容整体压在下半区：顶部那条留给顶部信息条（倒计时与分数，见 HudView）。
  */
 @ccclass('OrderCard')
 export class OrderCard extends Component {
@@ -44,7 +44,7 @@ export class OrderCard extends Component {
 
     const requiredIds = [order.baseId, ...order.toppingIds];
     if (this.orderIcons) {
-      // 已放进碗里的项打勾变暗，剩下的保持原样——"还差什么"不用另开面板
+      // 不另开"还差什么"的差集面板：打勾变暗已经说得清
       renderIconRow(this.orderIcons, requiredIds, ORDER_ICON_SIZE, ORDER_ICON_GAP, new Set(bowlIds));
     }
     if (this.progressLabel) {

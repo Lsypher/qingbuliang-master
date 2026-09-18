@@ -19,6 +19,8 @@ export class GameSession extends Component {
   private session: Session | null = null;
   /** 碗区的变换，第一次用到时再取（场景骨架不变的话整个单局只会取一次） */
   private bowlTransform: UITransform | null = null;
+  /** 碗区节点缺失是否已告警：缺节点时每帧都会来取，只提醒一次免得刷屏 */
+  private bowlMissing = false;
 
   /** 开一局新单局（进入单局页或重开时调用） */
   startRound(): void {
@@ -102,9 +104,13 @@ export class GameSession extends Component {
   /** 场景骨架里的碗区节点；找不到时警告一次并按"永远不在碗上"处理 */
   private resolveBowlTransform(): UITransform | null {
     if (this.bowlTransform) return this.bowlTransform;
+    if (this.bowlMissing) return null;
     const node = this.node.getChildByName('BowlArea');
     this.bowlTransform = node?.getComponent(UITransform) ?? null;
-    if (!this.bowlTransform) console.warn('[GameSession] 找不到 BowlArea 或其 UITransform，拖动落点永远判定为碗外');
+    if (!this.bowlTransform) {
+      this.bowlMissing = true;
+      console.warn('[GameSession] 找不到 BowlArea 或其 UITransform，拖动落点永远判定为碗外');
+    }
     return this.bowlTransform;
   }
 

@@ -21,7 +21,7 @@ export const STRINGS = {
   guide: '把配料拖进碗里，凑齐即出餐',
   /**
    * 准备过场上的那一句（见 ui/PrepareTransition.ts）。
-   * 刻意**不带海南味**：方言配额已经给了结算页与连击"够劲！"，要在这里用方言得从别处挪一个出来。
+   * 刻意**不带海南味**：方言配额的四处在文件头列明，这里要用就得从别处挪一个出来。
    */
   prepareTransition: '正在备料…',
 
@@ -31,12 +31,12 @@ export const STRINGS = {
   countdownLabel: '倒计时',
   /**
    * 最高分的共用串（**不带冒号**）：结算页那行用它，形如"最高分 128"。
-   * 开始页改版后不再用它——两条并存，本次不污染结算页（见 bestScoreStartLabel）。
+   * 开始页另用带冒号的 bestScoreStartLabel。
    */
   bestScoreLabel: '最高分',
   /**
    * 开始页专用串：带**全角冒号**，与后面的数字连起来读是"最高分：128"一个完整句子。
-   * 与结算页共用的 bestScoreLabel 分开的理由：改结算页那句属单局/结算范围，不归开始页改版。
+   * 与 bestScoreLabel 分开的理由：改结算页那句与改开始页这行互不牵动。
    */
   bestScoreStartLabel: '最高分：',
   /** 订单卡标题与已放进度 */
@@ -51,7 +51,7 @@ export const STRINGS = {
   scoreFloatPrefix: '+',
   /** 订单卡上"已在碗里"的打勾标记 */
   orderCheckMark: '✓',
-  /** 错放时在计时处飘出 */
+  /** 错放时在计时处飘出；"-3" 与 balance 的 MISDROP_PENALTY_MS 对应，改扣时必须同步改这里 */
   misdropText: '-3 秒',
 
   result: {

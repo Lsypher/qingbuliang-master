@@ -32,7 +32,7 @@ export const BusEvent = {
   PageShown: 'qingbuliang:page-shown',
 } as const;
 
-/** 渲染载荷：本次状态 + 本次产生的事件（事件留给动画用，03 切片先不消费） */
+/** 渲染载荷：本次状态 + 本次新产生的事件；事件供表现层做反馈（出餐飘字、引导收起、点亮结算页），视图不据此自行推规则 */
 export interface RenderPayload {
   state: SessionState;
   events: SessionEvent[];
@@ -61,7 +61,7 @@ export interface MisdropPayload {
   y: number;
 }
 
-/** 界面页：开始页 / 单局 / 结算页 */
+/** 界面页：开始页 / 单局页 / 结算页（用词以 CONTEXT.md 词表为准） */
 export type ScenePage = 'start' | 'game' | 'result';
 
 export const bus = new EventTarget();

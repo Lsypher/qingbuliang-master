@@ -32,7 +32,7 @@ export class BowlView extends Component {
     this.highlightNode.active = false;
 
     createLabel(this.node, 'BowlTitle', STRINGS.bowlTitle, 180, 30, UI_COLOR.textMuted);
-    // 空碗时显示提示文字；有料时隐藏，改由图标行展示（图标与托盘同一套）
+    // 图标行与托盘、订单卡共用 ingredientIcon 那一套图标
     this.itemsLabel = createLabel(this.node, 'BowlItems', '', 10, 34, UI_COLOR.textPrimary);
     this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_DROP_ZONE_WIDTH - 40, BOWL_ICON_SIZE);
     this.iconRow.setPosition(0, 10, 0);
@@ -64,7 +64,7 @@ export class BowlView extends Component {
     this.lastSignature = signature;
 
     const empty = bowlIds.length === 0;
-    // 空碗只显示提示文字；有料时收起文字、用图标行代替（与托盘同一套图标）
+    // 空碗只留提示文字；有料时改由图标行展示
     if (this.itemsLabel) {
       this.itemsLabel.node.active = empty;
       this.itemsLabel.string = empty ? STRINGS.bowlEmpty : '';

@@ -28,14 +28,9 @@ export class ResultView extends Component {
     this.render(finished, recordScore(finished.score));
   }
 
-  /**
-   * 按给定的结算结论摆出这一页，一行字都不自己算。
-   * 与"记账"分开各做一件事：写盘那次拿到结论后同样走这里，
-   * "破纪录才显示"这条规则也因此能被单独驱动（开发期自检把两个方向各走一遍，不必真去改本地纪录）。
-   * debug 目录删掉后若没有别的调用方，这个方法可以并回 show。
-   */
+  /** 按给定的结算结论摆出这一页，一行字都不自己算；与"记账"分开，便于单独驱动"破纪录才显示"这条规则 */
   render(finished: FinishedEvent, record: ScoreRecord): void {
-    // 结算页的标签是 02 切片的场景骨架摆好的，这里只改文字、不改布局
+    // 结算页的标签由场景骨架摆好，这里只改文字、不改布局
     setLabelText(this.node, 'Title', STRINGS.result.title);
     setLabelText(this.node, 'ScoreLine', `${STRINGS.result.scoreLabel} ${finished.score}`);
     setLabelText(this.node, 'OrdersLine', `${STRINGS.result.ordersLabel} ${finished.servedOrders}`);

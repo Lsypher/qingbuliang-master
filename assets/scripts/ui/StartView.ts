@@ -263,7 +263,7 @@ export class StartView extends Component {
    * 最高分那一行：文案 + 奖杯，摆成一行并整行居中。
    *
    * 文案用**开始页专用串**（带全角冒号，"最高分：128"读起来是一个完整句子），与结算页共用的
-   * `bestScoreLabel` 分开——本次只改开始页，不污染结算页那行。数字每次都重读本地存储：
+   * `bestScoreLabel` 分开（两条互不牵动）。数字每次都重读本地存储：
    * 上一局刚破的纪录，回到开始页立刻看得见。
    */
   private showBestScore(): void {
