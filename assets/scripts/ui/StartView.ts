@@ -46,6 +46,9 @@ const BEST_SCORE_LABEL_NODE = 'Label';
 /**
  * 标题艺术字在资源目录里的路径（按文件名取图，与背景图、配料图标同一套约定）。
  * 美术把 `title-art.png` 同名覆盖进这个目录即生效——不改代码、也不回编辑器接线。
+ *
+ * 场景里 `TitleArt` 的艺术字槽位已经接了同一张图（编辑器所见即所得），常态下走不到这里；
+ * 它兜的是"槽位还空着"那种情形，取的是同一个文件，两处不会各显示一张图。
  */
 const TITLE_ART_PATH = 'art/ui/title-art';
 
@@ -80,7 +83,11 @@ const START_BUTTON_PLACEHOLDER_RADIUS = 16;
  */
 const START_BUTTON_PRESS_SCALE = 0.95;
 
-/** 场景里承载标题的两套节点：图片（艺术字）与文字（兜底），同一时刻只显示其中一个 */
+/**
+ * 场景里承载标题的两套节点：图片（艺术字）与文字（兜底），同一时刻只显示其中一个。
+ *
+ * 艺术字接在 `TitleArt` 节点上，文字兜底摆在 `TitleFallback` 节点上；两者位置相同，谁在场都落在同一处。
+ */
 const TITLE_ART_NODE = 'TitleArt';
 const TITLE_FALLBACK_NODE = 'TitleFallback';
 
@@ -202,8 +209,9 @@ export class StartView extends Component {
    * 标题二选一：取到艺术字图片就显示图片，取不到（图还没交付、文件坏了）就显示文字兜底，
    * 页面绝不会开天窗。两套节点互斥显示，切换只改 `active`，不动场景接线。
    *
-   * 场景里给的是"兜底在先"的默认态（图片槽位为空的场景节点不参与渲染）；这里再加一层保险——
-   * 已经在本地缓存里拿到过图（再次回到开始页）就直接显示图片，不必等回调，免得闪一下兜底文字。
+   * 场景里给的是"艺术字在先"的默认态（艺术字（`TitleArt`）节点的图片槽位已接上 `title-art`，文字兜底（`TitleFallback`）节点收起），
+   * 编辑器与运行时的第一帧因此都是艺术字；这里再加一层保险——已经在本地缓存里拿到过图
+   * （再次回到开始页）就直接显示图片，不必等回调，免得闪一下兜底文字。
    */
   private showTitle(): void {
     const art = this.node.getChildByName(TITLE_ART_NODE);

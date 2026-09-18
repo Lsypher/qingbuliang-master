@@ -45,8 +45,9 @@
 
 - `npm test`：28 个用例全绿（新增 7 条；`tests/session.test.ts` 21 条作为核心层回归基线）。
 - `npx tsc --noEmit` 与引擎脚本诊断（MCP `run_script_diagnostics`）均 **0 错误**。
-- 编辑器场景实测（MCP 场景脚本）：`TitleArt.active=false` / `TitleFallback.active=true`（图片槽位为空时兜底在场、不开天窗）、两者 `scale=1`（编辑态可见宽度 720 ≥ 560，按公式不该缩放）、`TitleArt` 无 spriteFrame（换图不接线）——与 `fitTitleScale` 的预期逐项对上。
+- 编辑器场景实测（MCP 场景脚本，**2026-09-14 态**）：`TitleArt.active=false` / `TitleFallback.active=true`（图片槽位为空时兜底在场、不开天窗）、两者 `scale=1`（编辑态可见宽度 720 ≥ 560，按公式不该缩放）、`TitleArt` 无 spriteFrame（换图不接线）——与 `fitTitleScale` 的预期逐项对上。
 - 标题图的加载失败路径在编辑态可见（编辑态取不到 resources bundle）：不抛异常，直接退回兜底文字。
+- **2026-09-18 追加** `tests/titleArt.test.ts`（4 条）：直接读 `main.scene` 静态 JSON，锁定"艺术字挂在 `TitleFallback` 且槽位已接、文字兜底挪到 `TitleTextFallback`、默认互斥显示"。全量 `npx vitest run` 现为 **51 条全绿**，`read_lints` **0 错误**。
 
 ### 备注
 
@@ -55,6 +56,22 @@
 - 艺术字盒子按**图片自身高宽比**算的这条防守仍在起作用：这批图是 3:1、设计盒子是 3.5:1，标题因此不会被拉变形（按规格出图时会算回设计高度 160）。
 - **素材授权与登记**（AI 生成与 ADR-0001 的关系、`CREDITS.md` 登记）归 07 号票；本票只负责让图按文件名生效。
 - 本票未改 `funplay-cocos-mcp.config.json`（运行中的 MCP 服务自己写的端口），也把 spec.md 与 04~07 号票的文件留给各自处理。
+
+### 后续调整（2026-09-18）
+
+按用户要求把艺术字**直接挂在 `TitleFallback` 节点上**（所见即所得），替换原来的文字版「清补凉大师」Label。相对 2026-09-14 的实现，节点命名与默认态对调了，但"二选一互斥显示"与"同名覆盖即换图"的约定都保留：
+
+- `assets/scenes/main.scene`：
+  - 原 `TitleArt`（图像 Sprite）节点改名为 `TitleFallback`，并**在场景里接上了 `title-art` 的 spriteFrame**，`_active=true`（默认显示艺术字）；其 `UITransform` 盒改为 560×186.67（3:1，贴合交付图，避免横向拉伸）。
+  - 原 `TitleFallback`（文字 Label「清补凉大师」）改名为 `TitleTextFallback`，`_active=false`（默认收起）。
+  - 这次改动纯属节点改名 + active 翻转 + 图片盒按比例收尾，不含其它版面变化。
+- `assets/scripts/ui/StartView.ts`：
+  - 常量对调：`TITLE_ART_NODE = 'TitleFallback'`、`TITLE_FALLBACK_NODE = 'TitleTextFallback'`。`showTitle()`/`applyTitleArt()` 的二选一与同比缩放逻辑不变；场景已接图时走不到运行时 `loadSpriteFrame`，但同一文件仍作为"槽位还空着"的兜底，两处不会各显示一张图。
+- 与最初 spec 的出入（已在 code-review 的 Spec 轴标注为**用户需求驱动的可接受偏差**，非缺陷）：
+  - spec 当初写"默认态兜底文字在场、图片节点隐藏"——现已改为默认艺术字在场、文字兜底收起（用户要的就是所见即所得的图片标题）。
+  - spec 当初写"场景里不带 spriteFrame、不用回编辑器接线"——现已在场景里接好 spriteFrame 以所见即所得；"同名覆盖即换图"仍成立（代码兜底路径保留）。
+- 新增 `tests/titleArt.test.ts` 锁定上述结构不变量（详见上方验证证据）。
+- **命名再校正（2026-09-18 复审后）**：上面描述的是对调后的中间态——当时节点名"名不副实"（`TitleFallback` 装艺术字、`TitleTextFallback` 装文字兜底），复审按 Mysterious Name 指出后已改回语义一致：`TitleArt`=艺术字、`TitleFallback`=文字兜底；常量同步为 `TITLE_ART_NODE='TitleArt'` / `TITLE_FALLBACK_NODE='TitleFallback'`，`tests/titleArt.test.ts` 也按新名字锁定。spriteFrame 走 uuid 引用、与节点名无关，改名不会脱钩。
 
 ### 评审结论（code-review 两轴，固定点 `HEAD`，两轴各一个只读子代理）
 
