@@ -6,7 +6,7 @@ import { createLabel, createUiNode, paintPanel, PreloadTask, UI_COLOR, visibleWi
 
 const { ccclass } = _decorator;
 
-/** 配料盘格子排布：4 列 × 3 行正好填满 12 格；列距 4 × 180 = 720，宽屏下正好铺满设计宽度 */
+/** 配料盘格子排布：4 列 × 3 行正好填满 12 格；列距名义取 4 × 180 = 720 以对齐设计宽度（SCREEN_WIDTH），实际由 trayLayout() 扣掉两侧留白后再取小，宽屏下约为 172 */
 const COLUMN_COUNT = 4;
 const COLUMN_SPACING = 180;
 const ROW_SPACING = 118;

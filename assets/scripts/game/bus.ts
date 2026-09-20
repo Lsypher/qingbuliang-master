@@ -32,7 +32,7 @@ export const BusEvent = {
   PageShown: 'qingbuliang:page-shown',
 } as const;
 
-/** 渲染载荷：本次状态 + 本次新产生的事件；事件供表现层做反馈（出餐飘字、引导收起、点亮结算页），视图不据此自行推规则 */
+/** 渲染载荷：本次状态 + 本次新产生的事件（视图只订阅渲染、不自行推规则，见文件头） */
 export interface RenderPayload {
   state: SessionState;
   events: SessionEvent[];
@@ -44,17 +44,15 @@ export interface DragPointPayload {
   y: number;
 }
 
-/** 拖动松手载荷：哪格配料 + 松手位置 */
 export interface DragEndPayload extends DragPointPayload {
   ingredientId: string;
 }
 
-/** 碗高亮载荷：拖动落点当前是否落在碗区内 */
 export interface DragOverBowlPayload {
   overBowl: boolean;
 }
 
-/** 错放反馈载荷：错放的配料 id + 落点世界坐标（点按无手指位置，落点取碗中心） */
+/** 错放反馈载荷：点按无手指位置，落点取碗中心 */
 export interface MisdropPayload {
   ingredientId: string;
   x: number;

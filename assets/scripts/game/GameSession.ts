@@ -25,6 +25,10 @@ export class GameSession extends Component {
   /** 开一局新单局（进入单局页或重开时调用） */
   startRound(): void {
     this.session = createSession();
+    // 每局复位碗区缓存与缺失告警标志：使「整个单局只会取一次」的作用域名副其实，
+    // 也为将来 BowlArea 改为运行时装配留出正确行为（不会因上一局的缺失判定而永久锁死）
+    this.bowlTransform = null;
+    this.bowlMissing = false;
     this.publish([]);
   }
 
