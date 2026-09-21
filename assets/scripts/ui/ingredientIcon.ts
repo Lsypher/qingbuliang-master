@@ -1,5 +1,6 @@
 import { Color, Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import { STRINGS } from '../config/strings';
+import { iconRowLayout } from './iconRowLayout';
 import { createOutlinedText, createUiNode, loadSpriteFrame, UI_COLOR } from './uiFactory';
 
 /**
@@ -128,11 +129,10 @@ export function renderIconRow(
   const total = ids.length;
   if (total === 0) return;
 
-  const step = iconSize + gap;
-  const startX = -((total - 1) / 2) * step;
+  const positions = iconRowLayout(total, iconSize, gap);
   ids.forEach((id, index) => {
     const icon = createIngredientIcon(container, id, iconSize, `Icon_${id}_${index}`);
-    icon.setPosition(startX + index * step, 0, 0);
+    icon.setPosition(positions[index], 0, 0);
     if (checkedIds?.has(id)) markChecked(icon, iconSize);
   });
 }
