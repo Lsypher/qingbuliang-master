@@ -24,11 +24,4 @@ describe('重绘守卫', () => {
     expect(guard.changed('')).toBe(true);
     expect(guard.changed('')).toBe(false);
   });
-
-  it('reset 后恢复"首帧"：下一个签名必判有变', () => {
-    const guard = new SignatureGuard();
-    guard.changed('a');
-    guard.reset();
-    expect(guard.changed('a')).toBe(true);
-  });
 });

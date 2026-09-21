@@ -19,9 +19,4 @@ export class SignatureGuard {
     this.last = signature;
     return true;
   }
-
-  /** 恢复成"还没画过"：下一个签名无论是什么都算有变（重开一局等场景用） */
-  reset(): void {
-    this.last = null;
-  }
 }
