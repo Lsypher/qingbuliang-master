@@ -15,7 +15,7 @@ export const STRINGS = {
   title: '清补凉大师',
   /** 苏轼咏椰奶清补凉句，作为副标题 */
   subtitle: '椰树之上采琼浆，捧来一碗白玉香',
-  howToPlay: '把配料拖进碗里，凑齐即出餐，60 秒看谁调得多',
+  howToPlay: '把配料拖进碗里，凑齐即出餐，60 秒看能出多少餐',
   startButton: '开摊',
   /** 首局引导：浮在配料盘上方，首单出餐后消失（见 ui/GuideHint.ts） */
   guide: '把配料拖进碗里，凑齐即出餐',
