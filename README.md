@@ -61,11 +61,11 @@ npx --yes serve -l 8080 build/web-mobile   # 浏览器打开 http://localhost:80
 
 ```powershell
 npm install      # 首次
-npm test         # vitest：只测不依赖引擎的纯逻辑核心层（tests/session.test.ts）
+npm test         # vitest：只跑不依赖引擎的纯逻辑（core/ 规则 + 引擎无关的排版/判定模块）
 npx tsc --noEmit # 类型检查（依赖编辑器生成的 temp/tsconfig.cocos.json，先开一次编辑器）
 ```
 
-测试只覆盖**规则核心**（`assets/scripts/core/`）：拖拽跟手、动画、排版、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
+测试只覆盖**不依赖引擎的纯逻辑**：`assets/scripts/core/` 的规则，加上 `ui/` 与 `game/` 里那几个刻意不 import 引擎的模块（`trayLayout`、`iconRowLayout`、`redrawGuard`、`RoundBackground`、`dropZone`、`GameLauncher`）。拖拽跟手、动画、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
 
 ## 目录结构
 
@@ -74,7 +74,7 @@ assets/
   scenes/main.scene            唯一场景：开始页 / 单局页 / 结算页 + 背景层
   scripts/
     config/                    纯数据：配料表、难度与计分、文案、背景池、布局
-    core/                      纯逻辑规则核心（不 import 引擎，唯一被测对象）
+    core/                      纯逻辑规则核心（不 import 引擎）
     game/                      核心与表现层之间的桥：事件总线、会话组件、最高分存储
     ui/                        表现层：开始页 / 顶栏 / 订单卡 / 碗 / 配料盘 / 结算页 / 各类反馈
   resources/art/
@@ -83,7 +83,7 @@ assets/
     ui/                        开始页界面图 4 个文件：标题艺术字、按钮底图（正常 / 按下）、最高分奖杯
                                （同样按文件名加载，同名覆盖即换图）
 docs/                          ADR、设计基线、背景与界面出图需求、agent 约定
-tests/                         纯逻辑核心层的单元测试
+tests/                         不依赖引擎的纯逻辑单元测试（core/ 规则与引擎无关模块）
 ```
 
 规则只住在 `core/`：输入 → 核心 → 事件 → 渲染，表现层不反向写状态、"这一单值多少分"也由核心给出。
