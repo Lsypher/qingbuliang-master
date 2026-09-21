@@ -64,7 +64,7 @@ export class PrepareTransition extends Component {
   /**
    * 亮起过场：先把 `preloads` 跑起来，再按判据（最短展示时长 / 预载完成 / 硬超时）等放行。
    * 放行那一帧调用 `onHandOff`（组合根在那里切页 + 开一局新的），随后自己熄灭。
-   * 重复调用不会叠出第二段过场：组合根用"正在进入"的幂等标志挡住重复进入。
+   * 重复调用不会叠出第二段过场：进入的幂等由 game/GameLauncher.ts 挡，它在调 begin 之前就已置位。
    */
   begin(onHandOff: () => void, preloads: readonly PreloadTask[]): void {
     this.build();
@@ -126,7 +126,7 @@ export class PrepareTransition extends Component {
    *
    * `BlockInputEvents` 让这块面板把它盖住的整屏输入都吃掉：过场不透明、底下的按钮看不见，
    * 手指落在原按钮的位置上也不会点到底下的按钮。它挡的是**空间上的穿透**；
-   * "过场期间连点只开一局"那道**时间上的重复**由组合根的幂等标志挡，两者不重复。
+   * "过场期间连点只开一局"那道**时间上的重复**由 game/GameLauncher.ts 的幂等挡，两者不重复。
    *
    * 不写在 `onLoad`：本层装配时是隐藏的，隐藏节点上的组件不执行 `onLoad`，
    * 那样要等到第一次亮起才建内容；这里在 `begin` 里显式建，时序更直白。
