@@ -14,8 +14,8 @@ export const START_BACKGROUND = 'start-page';
 
 /** 单局背景池：只有进单局才从这里随机抽，一局之内不再换 */
 export const BACKGROUNDS: readonly string[] = [
-  'qilou-street-night',
-  'qingbuliang-stall-night',
-  'palm-coast-dusk',
-  'li-brocade-pattern',
+  '1',
+  '2',
+  '3',
+  '4',
 ];

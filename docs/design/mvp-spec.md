@@ -76,4 +76,3 @@
 
 - 术语表：`CONTEXT.md`
 - 决策记录：`docs/adr/0001-asset-sourcing-and-licensing.md`
-- 背景出图需求：`docs/art/background-prompts.md`

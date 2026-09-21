@@ -4,26 +4,26 @@
 
 ## 背景图（5 张：4 张单局随机池 + 1 张开始页专属）
 
-按 `docs/art/background-prompts.md` 的出图需求产出、由用户交付。原始文件为 1600×2848 PNG，已随提交 `e0ed041` 入库；需要取回原图时执行 `git checkout e0ed041 -- assets/art/backgrounds`。仓库里现存的是下面这套压缩后的上线档位。
+由用户交付。原始文件为 1600×2848 PNG，已随提交 `e0ed041` 入库；需要取回这一批原图时执行 `git checkout e0ed041 -- assets/art/backgrounds`（注意该提交里文件是旧名 qilou-street-night 等，与当前 1/2/3/4 命名不同）。仓库里现存的是下面这套压缩后的上线档位。
 
 | 文件 | 内容 | 来源 |
 | --- | --- | --- |
-| `assets/resources/art/backgrounds/qilou-street-night.jpg` | 骑楼老街夜市 | 按出图需求产出，用户交付 |
-| `assets/resources/art/backgrounds/qingbuliang-stall-night.jpg` | 清补凉夜市摊 | 同上 |
-| `assets/resources/art/backgrounds/palm-coast-dusk.jpg` | 椰林海岸黄昏 | 同上 |
-| `assets/resources/art/backgrounds/li-brocade-pattern.png` | 黎锦纹样底纹 | 同上 |
+| `assets/resources/art/backgrounds/1.png` | 厨房吧台 | 用户交付（整批替换，见下方说明） |
+| `assets/resources/art/backgrounds/2.png` | 甜品店 | 同上 |
+| `assets/resources/art/backgrounds/3.png` | 阳光椰林沙滩 | 同上 |
+| `assets/resources/art/backgrounds/4.png` | 海边木栈道 | 同上 |
 | `assets/resources/art/backgrounds/start-page.jpg` | 清补凉夜市摊（**开始页专属**，固定不随机） | 用户交付，源图 607×1080 |
 
-**已处理的素材问题（12 号切片验收时发现并裁掉）**：4 张图右下角都带 **"豆包AI生成"** 水印；`palm-coast-dusk.jpg` 还不只是水印——它是一张手机截图，顶部带着手机状态栏（电量百分比 / 信号 / Wi-Fi / 电池图标），底部还有 home 指示条。单局页底部被配料盘盖住看不见，但**开始页与结算页压暗后两者都清晰可见**。处置方式：**从 `e0ed041` 的原图裁切**（原图未动，要重出可整张替换）。四张统一按 9:16 收边：裁下 98 px、左右各 26 px；`palm-coast-dusk` 另裁上 138 px、左右各 65 px。
+**原 AI 出图批次的素材问题（12 号切片验收时发现，该批次已整批替换为用户交付的 PNG，仅作历史记录）**：最初那 4 张图右下角都带 **"豆包AI生成"** 水印；`palm-coast-dusk.jpg`（即现在的 `3.png`）还不只是水印——它是一张手机截图，顶部带着手机状态栏（电量百分比 / 信号 / Wi-Fi / 电池图标），底部还有 home 指示条。单局页底部被配料盘盖住看不见，但**开始页与结算页压暗后两者都清晰可见**。处置方式：**从 `e0ed041` 的原图裁切**（原图未动，要重出可整张替换）。四张统一按 9:16 收边：裁下 98 px、左右各 26 px；`palm-coast-dusk（现 3.png）` 另裁上 138 px、左右各 65 px。
 
 压缩档位（约束：单张 ≤400 KB、合计 ≤1.6 MB）：
 
 | 文件 | 档位 | 体积 | 保真度（PSNR，相对缩放后原图） |
 | --- | --- | --- | --- |
-| `qilou-street-night.jpg` | 1080×1920 JPEG q80 | 334 KB | 34.2 dB |
-| `qingbuliang-stall-night.jpg` | 1080×1920 JPEG q86 | 295 KB | 37.9 dB |
-| `palm-coast-dusk.jpg` | 1080×1920 JPEG q86 | 162 KB | 39.5 dB |
-| `li-brocade-pattern.png` | 540×960 PNG-128 调色板 | 342 KB | 33.0 dB |
+| `1.png` | 用户交付 PNG（原 1600×2848） | — | — |
+| `2.png` | 用户交付 PNG（原 1535×2732） | — | — |
+| `3.png` | 用户交付 PNG（原 1600×2848） | — | — |
+| `4.png` | 用户交付 PNG（原 1535×2732） | — | — |
 | `start-page.jpg` | 607×1080 JPEG q90 | 102 KB | 38.7 dB |
 | **合计** | | **1235 KB** | |
 

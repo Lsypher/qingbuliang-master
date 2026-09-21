@@ -94,7 +94,7 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 每一份外部素材都登记在 `CREDITS.md`：
 
 - **配料图标**：项目方自绘透明底 PNG（文件名即 id，同名覆盖即换图），12 格各有独立图、辅以中文标签识别。
-- **背景图**：4 张按 `docs/art/background-prompts.md` 的出图需求产出、由项目方交付；压缩档位与保真度记在 `CREDITS.md`。
+- **背景图**：4 张单局背景（`1`–`4`）由项目方交付，压缩档位记在 `CREDITS.md`。
 - **开始页界面图**：4 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。
 - **音频**：无（本版本不做音频）。
 
@@ -106,5 +106,4 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - `docs/design/mvp-spec.md`：设计基线（玩法、界面、验收清单）
 - `docs/adr/0001-asset-sourcing-and-licensing.md`：素材来源与授权策略
 - `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍
-- `docs/art/background-prompts.md`：背景出图需求
 - `docs/art/ui-prompts.md`：开始页界面出图需求（标题艺术字 / 按钮底图两态 / 最高分奖杯）
