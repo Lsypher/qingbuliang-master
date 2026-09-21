@@ -60,7 +60,7 @@ export class IngredientTray extends Component {
       const column = index % COLUMN_COUNT;
       const row = Math.floor(index / COLUMN_COUNT);
       const x = (column - (COLUMN_COUNT - 1) / 2) * spacing;
-      // 三行以托盘中心为基准上下对称排开：正着数第三行会探出面板、掉到屏幕外
+      // 三行以配料盘中心为基准上下对称排开：正着数第三行会探出面板、掉到屏幕外
       const y = ((ROW_COUNT - 1) / 2 - row) * ROW_SPACING;
 
       const slot = createUiNode(this.node, `Slot_${ingredient.id}`, slotWidth, SLOT_HEIGHT, y, x);
@@ -209,9 +209,9 @@ export class IngredientTray extends Component {
 
     const ingredient = ALL_INGREDIENTS.find((item) => item.id === ingredientId);
     const ghost = createUiNode(parent, 'DragGhost', GHOST_WIDTH, GHOST_HEIGHT);
-    // 描边用强调色，跟托盘里的静态格子区分开，一眼能看出"手里拿着东西"
+    // 描边用强调色，跟配料盘里的静态格子区分开，一眼能看出"手里拿着东西"
     paintPanel(ghost, UI_COLOR.panel, UI_COLOR.textAccent);
-    // 跟手幽灵也带上图标 + 名称，和托盘里的格子保持同一套视觉语言
+    // 跟手幽灵也带上图标 + 名称，和配料盘里的格子保持同一套视觉语言
     const ghostIcon = createIngredientIcon(ghost, ingredientId, 36, 'Icon');
     ghostIcon.setPosition(0, 12, 0);
     createLabel(ghost, 'Name', ingredient ? ingredient.name : ingredientId, -16, 18, UI_COLOR.textPrimary, GHOST_WIDTH - 12);

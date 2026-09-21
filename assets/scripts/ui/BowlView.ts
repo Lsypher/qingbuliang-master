@@ -33,7 +33,7 @@ export class BowlView extends Component {
     this.highlightNode.active = false;
 
     createLabel(this.node, 'BowlTitle', STRINGS.bowlTitle, 180, 30, UI_COLOR.textMuted);
-    // 图标行与托盘、订单卡共用 ingredientIcon 那一套图标
+    // 图标行与配料盘、订单卡共用 ingredientIcon 那一套图标
     this.itemsLabel = createLabel(this.node, 'BowlItems', '', 10, 34, UI_COLOR.textPrimary);
     this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_DROP_ZONE_WIDTH - 40, BOWL_ICON_SIZE);
     this.iconRow.setPosition(0, 10, 0);

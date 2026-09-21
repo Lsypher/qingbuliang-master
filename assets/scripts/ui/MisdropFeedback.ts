@@ -18,7 +18,7 @@ const FLOAT_RISE = 24;
 const FLOAT_DURATION = 0.6;
 /** 弹回动画时长（秒）：比飘字短，先一步归位，呼应"立刻弹回" */
 const BOUNCE_DURATION = 0.32;
-/** 弹回幽灵尺寸：比托盘格子小一号，和拖拽幽灵同款，一眼认出是"手里那份配料" */
+/** 弹回幽灵尺寸：比配料盘格子小一号，和拖拽幽灵同款，一眼认出是"手里那份配料" */
 const BOUNCE_GHOST_WIDTH = 120;
 const BOUNCE_GHOST_HEIGHT = 64;
 /** 飘字相对"倒计时"标签的水平偏移（设计像素）：落在其右侧，明确"扣在倒计时上" */

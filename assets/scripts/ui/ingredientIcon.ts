@@ -36,7 +36,7 @@ const CHECKED_ALPHA = 110;
 
 /**
  * 异步取某配料的图标 SpriteFrame；路径固定为 `${INGREDIENT_DIR}/${id}`。
- * 加载失败回调 null，由调用方决定是否兜底（目前托盘/碗/订单卡都只显示标签，不致命）。
+ * 加载失败回调 null，由调用方决定是否兜底（目前配料盘/碗/订单卡都只显示标签，不致命）。
  * 取图本身走界面统一的加载入口，这里只留"配料 id → 路径"这一段本模块自己的约定。
  */
 export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | null) => void): void {

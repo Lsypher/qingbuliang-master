@@ -27,7 +27,7 @@ export class OrderCard extends Component {
 
   protected onLoad(): void {
     createLabel(this.node, 'CardTitle', STRINGS.orderTitle, 45, 30, UI_COLOR.textMuted);
-    // 顾客要的配料用图标行展示，与托盘、碗里同一套图标
+    // 顾客要的配料用图标行展示，与配料盘、碗里同一套图标
     this.orderIcons = createUiNode(this.node, 'OrderIcons', 660, ORDER_ICON_SIZE + 8);
     this.orderIcons.setPosition(0, -55, 0);
     this.progressLabel = createLabel(this.node, 'ProgressLine', '', -155, 26, UI_COLOR.textMuted);
