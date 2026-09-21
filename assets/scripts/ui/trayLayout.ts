@@ -9,13 +9,17 @@
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { SCREEN_WIDTH } from '../config/layout';
 
-/** 配料盘格子排布：4 列 × 3 行正好填满 12 格；列距名义取 4 × 180 = 720 以对齐设计宽度（SCREEN_WIDTH），实际由 trayLayout() 扣掉两侧留白后再取小，宽屏下约为 172 */
+/** 列数（格）：4 列 × 3 行正好填满 12 格；增删配料要同步（ROW_COUNT 由它推导） */
 export const COLUMN_COUNT = 4;
+/** 列距名义上限（设计像素）：取 180 使 4 列正好铺满设计宽度 720（4 × 180 = SCREEN_WIDTH）；实际列距由 trayLayout() 按可见宽度收窄，只有超宽屏才用到这个上限 */
 export const COLUMN_SPACING = 180;
+/** 行距（设计像素）：118 让 3 行在配料盘高度内上下排开、格子不重叠；行数固定为 3，改它要连带核对配料盘与单局页的高度 */
 export const ROW_SPACING = 118;
+/** 格子设计宽度（设计像素）：留给图标（52）与中文标签的横向余量；窄屏随列距一起收窄，下限见 MIN_SLOT_WIDTH */
 export const SLOT_WIDTH = 160;
+/** 格子设计高度（设计像素）：要容下图标（52 高、上移 16）与下方中文标签且不重叠 */
 export const SLOT_HEIGHT = 96;
-/** 相邻格子之间至少要留的间隙（设计像素）：窄屏收窄列距时靠它保证格子不贴在一起 */
+/** 相邻格子之间至少要留的间隙（设计像素）：窄屏收窄列距时靠它保证格子不贴在一起；取 10 是"一眼看得出是两格"的下限 */
 export const COLUMN_GAP = 10;
 /** 配料盘左右两侧留白（设计像素） */
 export const TRAY_SIDE_MARGIN = 16;
