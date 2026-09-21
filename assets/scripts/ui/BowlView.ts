@@ -4,6 +4,7 @@ import { STRINGS } from '../config/strings';
 import type { DragOverBowlPayload, RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { renderIconRow } from './ingredientIcon';
+import { SignatureGuard } from './redrawGuard';
 import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
 /** 碗里图标大小与间距：碗区宽 600，最多 6 项，横排不挤 */
@@ -22,8 +23,8 @@ export class BowlView extends Component {
   private itemsLabel: Label | null = null;
   private iconRow: Node | null = null;
   private highlightNode: Node | null = null;
-  /** 用 null 而不是空串作"还没画过"的哨兵：空碗的签名恰好就是空串，否则首帧会被短路 */
-  private lastSignature: string | null = null;
+  /** 重绘守卫：碗内容签名没变就跳过重绘（null 哨兵在守卫内部，见 ui/redrawGuard.ts） */
+  private readonly redraw = new SignatureGuard();
 
   protected onLoad(): void {
     // 高亮框与落点判定同源（同一份落区配置）：看得见的框即落区，判定再外扩容差一圈
@@ -59,9 +60,7 @@ export class BowlView extends Component {
 
   private onRender(payload: RenderPayload): void {
     const { bowlIds } = payload.state;
-    const signature = bowlIds.join(',');
-    if (signature === this.lastSignature) return;
-    this.lastSignature = signature;
+    if (!this.redraw.changed(bowlIds.join(','))) return;
 
     const empty = bowlIds.length === 0;
     // 空碗只留提示文字；有料时改由图标行展示

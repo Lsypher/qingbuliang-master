@@ -3,6 +3,7 @@ import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { renderIconRow } from './ingredientIcon';
+import { SignatureGuard } from './redrawGuard';
 import { createLabel, createUiNode, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -21,7 +22,8 @@ const ORDER_ICON_GAP = 8;
 export class OrderCard extends Component {
   private orderIcons: Node | null = null;
   private progressLabel: Label | null = null;
-  private lastSignature: string | null = null;
+  /** 重绘守卫：订单与碗内容签名没变就跳过重绘（哨兵在守卫内部，见 ui/redrawGuard.ts） */
+  private readonly redraw = new SignatureGuard();
 
   protected onLoad(): void {
     createLabel(this.node, 'CardTitle', STRINGS.orderTitle, 45, 30, UI_COLOR.textMuted);
@@ -39,8 +41,7 @@ export class OrderCard extends Component {
   private onRender(payload: RenderPayload): void {
     const { order, bowlIds } = payload.state;
     const signature = [order.baseId, order.toppingIds.join(','), bowlIds.join(',')].join('|');
-    if (signature === this.lastSignature) return;
-    this.lastSignature = signature;
+    if (!this.redraw.changed(signature)) return;
 
     const requiredIds = [order.baseId, ...order.toppingIds];
     if (this.orderIcons) {

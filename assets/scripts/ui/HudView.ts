@@ -3,6 +3,7 @@ import { ROUND_DURATION_MS } from '../config/balance';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
+import { SignatureGuard } from './redrawGuard';
 import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -34,7 +35,8 @@ export class HudView extends Component {
 
   private lastSeconds = -1;
   private lastBarRatio = -1;
-  private lastSignature: string | null = null;
+  /** 统计行（分数 / 完成订单 / 连击）的重绘守卫；倒计时的秒与比例各有自己的判断语义 */
+  private readonly statsRedraw = new SignatureGuard();
   /** 告警是否正亮着：与核心的 warned 保持同步，用来判断脉冲该起还是该停 */
   private warningActive = false;
   private pulseTween: Tween<Node> | null = null;
@@ -128,9 +130,7 @@ export class HudView extends Component {
   /** 分数 / 完成订单 / 连击：值没变就不重排文本 */
   private renderStats(state: RenderPayload['state']): void {
     const { score, servedOrders, comboCount } = state;
-    const signature = `${score}|${servedOrders}|${comboCount}`;
-    if (signature === this.lastSignature) return;
-    this.lastSignature = signature;
+    if (!this.statsRedraw.changed(`${score}|${servedOrders}|${comboCount}`)) return;
 
     if (!this.lineLabel) return;
     this.lineLabel.string = [
