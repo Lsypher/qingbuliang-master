@@ -4,8 +4,17 @@ import type { Session, SessionEvent } from '../core/session';
 import { createSession } from '../core/session';
 import type { DragEndPayload, DragPointPayload } from './bus';
 import { BusEvent, bus } from './bus';
+import { isWithinDropZone } from './dropZone';
+import type { DropZone } from './dropZone';
 
 const { ccclass } = _decorator;
+
+/** 本局落区：以碗区中心为准的矩形 + 外扩容差，尺寸取自 config/layout（与看得见的高亮框同源） */
+const BOWL_DROP_ZONE: DropZone = {
+  width: BOWL_DROP_ZONE_WIDTH,
+  height: BOWL_DROP_ZONE_HEIGHT,
+  tolerance: DROP_ZONE_TOLERANCE_PX,
+};
 
 /**
  * 适配层：把 Cocos 的时间与输入翻译成核心调用，再把核心的事件广播给表现层。
@@ -97,12 +106,9 @@ export class GameSession extends Component {
   private isOverBowl(point: DragPointPayload): boolean {
     const transform = this.resolveBowlTransform();
     if (!transform) return false;
-    // 世界坐标 → 碗区局部坐标：落点落在落区矩形（外扩容差）内即算入碗
+    // 世界坐标 → 碗区局部坐标（这一步要引擎变换，留在适配层），几何判定交给纯函数
     const local = transform.convertToNodeSpaceAR(new Vec3(point.x, point.y, 0));
-    return (
-      Math.abs(local.x) <= BOWL_DROP_ZONE_WIDTH / 2 + DROP_ZONE_TOLERANCE_PX &&
-      Math.abs(local.y) <= BOWL_DROP_ZONE_HEIGHT / 2 + DROP_ZONE_TOLERANCE_PX
-    );
+    return isWithinDropZone(local.x, local.y, BOWL_DROP_ZONE);
   }
 
   /** 场景骨架里的碗区节点；找不到时警告一次并按"永远不在碗上"处理 */
