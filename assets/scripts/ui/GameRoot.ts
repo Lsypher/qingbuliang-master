@@ -2,6 +2,7 @@ import { _decorator, Button, Component, Node } from 'cc';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import type { RenderPayload, ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
+import { GameLauncher } from '../game/GameLauncher';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
 import { IngredientTray } from './IngredientTray';
@@ -54,10 +55,14 @@ export class GameRoot extends Component {
    */
   private tray: IngredientTray | null = null;
   /**
-   * "正在进入"的幂等标志：过场期间、以及交接完的那一两帧内，重复点开摊／重开一律忽略。
-   * 它与过场层的整屏吃触摸**分工不同、不重复**：一个挡时间上的重复开局，一个挡空间上的点击穿透。
+   * 开局器：把"过场期间只开一局 + 交接后延迟一帧解锁"这段时序规则收在 game/GameLauncher.ts。
+   * 组合根只交出三样能力（过场在不在、怎么亮、怎么延迟一帧），不再自己管那个标志。
    */
-  private entering = false;
+  private readonly launcher = new GameLauncher({
+    hasTransition: () => this.prepareTransition !== null,
+    beginTransition: (onReleased, preloads) => this.prepareTransition?.begin(onReleased, preloads),
+    defer: (fn) => this.scheduleOnce(fn, 0),
+  });
 
   protected onLoad(): void {
     this.bindClick(this.startButton, this.showGame);
@@ -170,21 +175,16 @@ export class GameRoot extends Component {
    * 过场期间图先到手、由背景层留着，交接那一帧背景层同步换上它，进单局页时背景已经就位。
    * 这里只做编排——背景是哪张、从哪个池子抽，都在背景层，组合根不知道。
    *
-   * 过场期间连点这里只会被 `entering` 挡下：过场层的整屏吃触摸能挡掉"点到底下按钮"，
-   * 但挡不掉已经落在按钮上、过场出现后才抬起的第二根手指，那一路只有这个标志能挡。
+   * 连点由 GameLauncher 的幂等挡下（见 game/GameLauncher.ts）：过场层的整屏吃触摸能挡掉
+   * "点到底下按钮"，但挡不掉已经落在按钮上、过场出现后才抬起的第二根手指，那一路只有它能挡。
    */
   showGame(): void {
-    if (this.entering) return;
-    this.entering = true;
     // 预载任务由"拥有资源那层"提供：背景层交出本局背景、配料盘交出 12 格图标。
     // 过场按"已决几项 / 总项数"放行，两个来源各自把加载路径留在本层，组合根只做编排。
     const preloads: PreloadTask[] = [];
     if (this.background) preloads.push(this.background.rollRoundBackground());
     if (this.tray) preloads.push(...this.tray.preloadIcons());
-    if (this.prepareTransition) this.prepareTransition.begin(() => this.enterGame(), preloads);
-    // 过场层没装配上（场景缺节点又建不出来）时退回改动前的直接进入：宁可没有过场，也不能把玩家挡在开始页
-    // （这是条兜底路：预载任务没人跑，本局背景会沿用切换前的那张、配料图标也按进页后异步加载，不阻塞——见 showRolledBackground）
-    else this.enterGame();
+    this.launcher.launch(() => this.enterGame(), preloads);
   }
 
   /**
@@ -194,11 +194,6 @@ export class GameRoot extends Component {
   private enterGame(): void {
     this.switchTo(this.gamePage, 'game');
     this.gameSession?.startRound();
-    // 过场熄灭与切页都在上一步那一帧里做完了；标志延到下一帧（延迟 0 的定时器）才解开，
-    // 挡掉"过场刚熄、页面刚切"那一两帧内落在已隐藏按钮上的连点
-    this.scheduleOnce(() => {
-      this.entering = false;
-    }, 0);
   }
 
   showResult(): void {
