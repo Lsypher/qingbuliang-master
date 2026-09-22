@@ -152,8 +152,8 @@ function markChecked(icon: Node, iconSize: number): void {
     STRINGS.orderCheckMark,
     Math.round(Math.min(w, h) * 0.5),
     UI_COLOR.orderCheck,
-    UI_COLOR.orderCheckShadow,
+    UI_COLOR.orderCheckOutline,
     Math.min(w, h),
-  );
+  ).node;
   check.setPosition(w * 0.28, h * 0.28, 0);
 }

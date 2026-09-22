@@ -3,9 +3,26 @@ import { SCREEN_WIDTH } from '../config/layout';
 
 /** 界面统一用色：改主题只改这里；素材配色到位前先用这套程序化配色 */
 export const UI_COLOR = {
+  /** 正文白。只用在自带深色底板的地方（配料盘格子、跟手与弹回幽灵、飘字底板、准备过场）；改它牵动这四处 */
   textPrimary: new Color(255, 255, 255, 255),
-  textMuted: new Color(178, 190, 208, 255),
+  /**
+   * 单局页正文色（暖米黄）：统计行、订单卡标题与已放进度、碗区标题与空碗提示。
+   * 用暖色而非中性灰，是因为背景美术通篇暖色（木纹、沙滩、夜市灯）加大片亮青，
+   * 冷灰压上去显脏又争不到对比；米黄与背景同族、只靠明度退下去，配 textOutline 后对比度约 9:1。
+   * 改它牵动上述五处文字，且要连 textOutline 一起看——可读性其实由描边承担。
+   */
+  textBody: new Color(240, 219, 190, 255),
+  /**
+   * 强调色（暖金）：只给"必须第一眼看到"的东西——单局页倒计时数字、配料盘的汤底标签、跟手幽灵的描边。
+   * 与倒计时进度条的填充同族（见 barFill），改色要连那两处一起看。
+   */
   textAccent: new Color(255, 226, 168, 255),
+  /**
+   * 单局页静态文字的描边色（深暖棕），与开始页"最高分"同一支（那一屏的颜色烤在场景里，改这里不影响它）。
+   * 描边只负责把字从任意背景上"抠"出来，不参与信息层级——层级交给正文色的明度与字号。
+   * 反馈飘字与订单勾不共用它：它们各有与自身正文同色系的深色描边（见下面几支 *Outline）。
+   */
+  textOutline: new Color(74, 44, 20, 255),
   panel: new Color(24, 32, 46, 235),
   panelBorder: new Color(120, 140, 170, 180),
   /** 倒计时进度条：底槽（半透明）与剩余时间填充 */
@@ -28,28 +45,41 @@ export const UI_COLOR = {
   misdropFlash: new Color(255, 70, 70, 220),
   /** 错放飘字：高饱和正红，比原来的浅粉更跳眼，凑近也能一眼看见 */
   misdropText: new Color(255, 60, 60, 255),
-  /** 错放飘字垫底描边：深红近黑，压在任何背景上都把上面的红字托出来 */
-  misdropShadow: new Color(40, 0, 0, 255),
+  /** 错放飘字描边：深红近黑，压在任何背景上都把上面的红字托出来（不用 textOutline：红字配棕边会发浑） */
+  misdropOutline: new Color(40, 0, 0, 255),
   /** 出餐得分飘字：暖金色，与"这是好事"对应 */
   scoreFloat: new Color(255, 236, 160, 255),
-  /** 得分飘字垫底描边：深棕近黑 */
-  scoreFloatShadow: new Color(52, 30, 0, 255),
+  /** 得分飘字描边：深棕近黑（与暖金同色系，同上不用 textOutline） */
+  scoreFloatOutline: new Color(52, 30, 0, 255),
   /** 连击喊话"够劲！"：亮橙，要在任意背景上跳出来 */
   comboShout: new Color(255, 150, 60, 255),
-  /** 连击喊话垫底描边：深红近黑 */
-  comboShoutShadow: new Color(70, 16, 0, 255),
-  /** 首局引导文字：暖白正文 + 深色垫底，浮在碗区面板上也读得清 */
+  /** 连击喊话描边：深红近黑（与亮橙同色系，同上不用 textOutline） */
+  comboShoutOutline: new Color(70, 16, 0, 255),
+  /** 首局引导文字：暖白正文，描边用通用的 textOutline（压在碗区与配料盘之间的背景图上） */
   guideText: new Color(255, 246, 222, 255),
-  guideShadow: new Color(28, 34, 44, 255),
   /** 订单卡上"已放入碗中"的打勾：亮绿；图标本体同时压暗，只留勾是亮的 */
   orderCheck: new Color(126, 226, 138, 255),
-  orderCheckShadow: new Color(10, 44, 20, 255),
+  /** 打勾的描边：深绿近黑（与亮绿同色系，同上不用 textOutline） */
+  orderCheckOutline: new Color(10, 44, 20, 255),
   /** 倒计时告警（最后 10 秒）：数字与进度条一起转红，数字脉冲 */
   countdownWarning: new Color(255, 74, 74, 255),
+  /**
+   * 倒计时告警态的描边：近黑的红，告警时与正文一起换上。
+   * 告警红是中明度，配 textOutline 那支深暖棕只有约 3.8:1；换这支约 5.9:1——
+   * 红字配近黑边已接近这套配色的上限（再想高就得把红提亮，那就不像告警了）。
+   * 只影响告警态那一行数字。
+   */
+  countdownWarningOutline: new Color(30, 4, 4, 255),
 } as const;
 
-/** 描边文字的垫底偏移（设计像素）：暗色垫底略往右下挪，亮色正文盖在上面 */
-const OUTLINE_OFFSET = 3;
+/**
+ * 描边宽度：字号 × 0.09（四舍五入，下限 2）。
+ * 34 号字下算出来正好是开始页"最高分"用的 3，与那一屏的观感对齐；
+ * 随字号等比缩放，小字才不会被描边糊住（固定 3 压在 24 号字上，笔画会明显发胖）。
+ */
+function outlineWidthFor(fontSize: number): number {
+  return Math.max(2, Math.round(fontSize * 0.09));
+}
 
 /**
  * 当前屏幕能看见的设计宽度。
@@ -150,10 +180,30 @@ export function setLabelText(parent: Node, nodeName: string, text: string): void
 }
 
 /**
- * 建一段"带深色垫底"的文字，返回承载它的容器节点（盒内是垫底与正文两层标签）。
+ * 描边文字的句柄：把这个标签和它的描边设置收成一个对象，调用方不必自己去取 Label 组件。
  *
- * 引擎没有现成的文字描边 API，用"暗色垫底略偏移 + 亮色正文盖上去"实现，在任意背景上都读得清。
- * 缩放 / 位移 / 淡出都作用在容器上——两层一起动，不会散架。
+ * 文字要随状态变时才用得上它（倒计时读秒、统计行、已放进度）；用完即焚的浮字只取 `node` 摆位置、跑补间。
+ */
+export interface OutlinedText {
+  /** 文字节点：位置、缩放、淡出等整体动作都作用在它上面 */
+  readonly node: Node;
+  /** 换字 */
+  setText(text: string): void;
+  /** 只换正文颜色。描边是"把字从背景上抠出来"的那一层，默认不跟着正文换 */
+  setTextColor(color: Color): void;
+  /** 换描边颜色：正文整支换色系时才用（如倒计时告警，红字要同时配上近黑的红边） */
+  setOutlineColor(color: Color): void;
+}
+
+/**
+ * 建一段带描边的文字，返回它的句柄。
+ *
+ * 描边走引擎自带的**字形描边**（3.8.2 起 Label 直接支持，不必再挂 LabelOutline），
+ * 而不是"再叠一层偏移文字"——叠两层会被看成两行字重在一起（发虚、易晕），
+ * 字形描边是沿轮廓外扩，读起来仍是一个字。开始页的"最高分"就是这一套，单局页沿用同一支描边色。
+ *
+ * 单局页的文字压在每局随机抽出的美术图上、自己没有底板，可读性全交给这层描边。
+ * 节点初始落在 (0, 0)，摆哪儿交给调用方（浮字按锚点算，静态文字给固定 y）。
  */
 export function createOutlinedText(
   parent: Node,
@@ -163,12 +213,25 @@ export function createOutlinedText(
   color: Color,
   outlineColor: Color,
   width = 660,
-): Node {
-  const box = createUiNode(parent, name, width, fontSize * 1.6);
-  box.addComponent(UIOpacity);
-  createLabel(box, `${name}Outline`, text, -OUTLINE_OFFSET, fontSize, outlineColor, width, OUTLINE_OFFSET);
-  createLabel(box, `${name}Text`, text, 0, fontSize, color, width);
-  return box;
+): OutlinedText {
+  const label = createLabel(parent, name, text, 0, fontSize, color, width);
+  // 淡入淡出要就地取这个组件（见 ui/GuideHint.ts），所以建的时候就挂上，不留给调用方自己加
+  label.node.addComponent(UIOpacity);
+  label.enableOutline = true;
+  label.outlineColor = outlineColor;
+  label.outlineWidth = outlineWidthFor(fontSize);
+  return {
+    node: label.node,
+    setText: (value) => {
+      label.string = value;
+    },
+    setTextColor: (value) => {
+      label.color = value;
+    },
+    setOutlineColor: (value) => {
+      label.outlineColor = value;
+    },
+  };
 }
 
 /**

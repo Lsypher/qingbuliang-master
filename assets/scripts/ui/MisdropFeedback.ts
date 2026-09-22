@@ -80,7 +80,7 @@ export class MisdropFeedback extends Component {
       .start();
   }
 
-  /** 飘字：在顶部"倒计时"标签右侧冒出 "-3 秒"，上飘同时淡出；暗色垫底保证在任意背景下都跳出来 */
+  /** 飘字：在顶部"倒计时"标签右侧冒出 "-3 秒"，上飘同时淡出；深色描边保证在任意背景下都跳出来 */
   private floatPenalty(): void {
     const countdown = findNodeByName(this.node, 'CountdownLabel');
     const baseWorld = countdown ? countdown.worldPosition : new Vec3(0, 604, 0);
@@ -92,9 +92,9 @@ export class MisdropFeedback extends Component {
       STRINGS.misdropText,
       COUNTDOWN_FLOAT_FONT,
       UI_COLOR.misdropText,
-      UI_COLOR.misdropShadow,
+      UI_COLOR.misdropOutline,
       240,
-    );
+    ).node;
     float.setPosition(local.x, local.y, 0);
     floatAway(float, { duration: FLOAT_DURATION, rise: FLOAT_RISE });
   }

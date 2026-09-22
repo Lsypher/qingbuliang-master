@@ -67,8 +67,8 @@ export class ServeFeedback extends Component {
       `${STRINGS.scoreFloatPrefix}${orderScore}`,
       SCORE_FLOAT_FONT,
       UI_COLOR.scoreFloat,
-      UI_COLOR.scoreFloatShadow,
-    );
+      UI_COLOR.scoreFloatOutline,
+    ).node;
 
     float.setPosition(at.x, at.y, 0);
     floatAway(float, { duration: SCORE_FLOAT_DURATION, rise: SCORE_FLOAT_RISE });
@@ -83,8 +83,8 @@ export class ServeFeedback extends Component {
       STRINGS.comboShout,
       SHOUT_FONT,
       UI_COLOR.comboShout,
-      UI_COLOR.comboShoutShadow,
-    );
+      UI_COLOR.comboShoutOutline,
+    ).node;
 
     shout.setPosition(at.x, at.y, 0);
     shout.setScale(SHOUT_START_SCALE, SHOUT_START_SCALE, 1);

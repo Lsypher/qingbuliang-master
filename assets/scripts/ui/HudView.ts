@@ -1,13 +1,23 @@
-import { _decorator, Component, Label, Node, Tween, Vec3, tween } from 'cc';
+import { _decorator, Component, Node, Tween, Vec3, tween } from 'cc';
 import { ROUND_DURATION_MS } from '../config/balance';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
 import { SignatureGuard } from './redrawGuard';
-import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import type { OutlinedText } from './uiFactory';
+import { createOutlinedText, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
 
+/**
+ * 顶部信息条的版面（设计像素，以单局页中心为原点）：倒计时数字在上、进度条夹中间、统计行在下。
+ * 这一条没有自己的底板（文字与进度条都压在每局随机背景图上），字号按"隔着一层美术也一眼扫到"定，不再往下调。
+ */
+const COUNTDOWN_Y = 604;
+const COUNTDOWN_FONT = 34;
+const BAR_Y = 566;
+const STATS_Y = 528;
+const STATS_FONT = 24;
 /** 倒计时进度条尺寸：填充从左端起，随剩余时间收短 */
 const BAR_WIDTH = 560;
 const BAR_HEIGHT = 14;
@@ -25,11 +35,15 @@ const PULSE_SCALE = 1.15;
  *
  * 最后 10 秒的变红脉冲只认核心状态里的 `warned`：核心保证每局只置真一次，
  * 这里只是把它镜像成"亮着 / 灭着"两种表现——所以既不会重复触发，新一局也自然复位。
+ *
+ * 两行文字都带字形描边（来由与做法见 uiFactory.createOutlinedText）。
  */
 @ccclass('HudView')
 export class HudView extends Component {
-  private countdownLabel: Label | null = null;
-  private lineLabel: Label | null = null;
+  /** 倒计时数字（告警时正文与描边一起转红，见 setCountdownWarning） */
+  private countdownLabel: OutlinedText | null = null;
+  /** 统计行：分数 / 完成订单 / 连击 */
+  private statsLine: OutlinedText | null = null;
   /** 进度条填充节点：用 x 缩放表示剩余比例，比每帧重画 Graphics 便宜 */
   private barFillNode: Node | null = null;
 
@@ -43,7 +57,8 @@ export class HudView extends Component {
 
   protected onLoad(): void {
     this.buildCountdown();
-    this.lineLabel = createLabel(this.node, 'HudLine', '', 528, 24, UI_COLOR.textMuted);
+    this.statsLine = createOutlinedText(this.node, 'HudLine', '', STATS_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
+    this.statsLine.node.setPosition(0, STATS_Y, 0);
     bus.on(BusEvent.Render, this.onRender, this);
   }
 
@@ -54,9 +69,11 @@ export class HudView extends Component {
 
   /** 倒计时区：上一行数字，下一行进度条 */
   private buildCountdown(): void {
-    this.countdownLabel = createLabel(this.node, 'CountdownLabel', '', 604, 34, UI_COLOR.textAccent);
+    // 节点名保持 CountdownLabel：错放的"-3 秒"按名字锚到它旁边（见 ui/MisdropFeedback.ts）
+    this.countdownLabel = createOutlinedText(this.node, 'CountdownLabel', '', COUNTDOWN_FONT, UI_COLOR.textAccent, UI_COLOR.textOutline);
+    this.countdownLabel.node.setPosition(0, COUNTDOWN_Y, 0);
 
-    const track = createUiNode(this.node, 'CountdownBar', BAR_WIDTH, BAR_HEIGHT, 566);
+    const track = createUiNode(this.node, 'CountdownBar', BAR_WIDTH, BAR_HEIGHT, BAR_Y);
     paintPanel(track, UI_COLOR.barTrack);
 
     // 先按满宽画一次，之后只改缩放与位移
@@ -82,9 +99,9 @@ export class HudView extends Component {
   /** 最后 10 秒：数字与进度条一起转红，数字开始脉冲；复位时全部还原 */
   private setCountdownWarning(active: boolean): void {
     this.warningActive = active;
-    if (this.countdownLabel) {
-      this.countdownLabel.color = active ? UI_COLOR.countdownWarning : UI_COLOR.textAccent;
-    }
+    // 正文与描边一起换：告警红是中明度，只换正文的话配深暖棕边只有约 3.8:1，托不住
+    this.countdownLabel?.setTextColor(active ? UI_COLOR.countdownWarning : UI_COLOR.textAccent);
+    this.countdownLabel?.setOutlineColor(active ? UI_COLOR.countdownWarningOutline : UI_COLOR.textOutline);
     if (this.barFillNode) paintPanel(this.barFillNode, active ? UI_COLOR.countdownWarning : UI_COLOR.barFill);
     if (active) this.startPulse();
     else this.stopPulse();
@@ -116,7 +133,7 @@ export class HudView extends Component {
     const seconds = Math.ceil(Math.max(0, remainingMs) / 1000);
     if (seconds !== this.lastSeconds) {
       this.lastSeconds = seconds;
-      if (this.countdownLabel) this.countdownLabel.string = `${STRINGS.countdownLabel} ${seconds}`;
+      this.countdownLabel?.setText(`${STRINGS.countdownLabel} ${seconds}`);
     }
 
     const ratio = Math.min(1, Math.max(0, remainingMs / ROUND_DURATION_MS));
@@ -132,11 +149,10 @@ export class HudView extends Component {
     const { score, servedOrders, comboCount } = state;
     if (!this.statsRedraw.changed(`${score}|${servedOrders}|${comboCount}`)) return;
 
-    if (!this.lineLabel) return;
-    this.lineLabel.string = [
+    this.statsLine?.setText([
       `${STRINGS.scoreLabel} ${score}`,
       `${STRINGS.ordersLabel} ${servedOrders}`,
       `${STRINGS.comboLabel} ${comboCount}`,
-    ].join('　');
+    ].join('　'));
   }
 }

@@ -58,7 +58,7 @@ export class GuideHint extends Component {
     this.hide();
   }
 
-  /** 造出引导行：正文与垫底两层标签由 createOutlinedText 一次摆好，初始不出现在屏幕上 */
+  /** 造出引导行：正文与字形描边由 createOutlinedText 一次设好，初始不出现在屏幕上 */
   private buildBox(): Node {
     const box = createOutlinedText(
       this.node,
@@ -66,8 +66,8 @@ export class GuideHint extends Component {
       STRINGS.guide,
       GUIDE_FONT,
       UI_COLOR.guideText,
-      UI_COLOR.guideShadow,
-    );
+      UI_COLOR.textOutline,
+    ).node;
     this.opacity = box.getComponent(UIOpacity);
 
     // 以配料盘顶边为基准往上让一点：引导属于"配料盘上方"，配料盘动了它也动
