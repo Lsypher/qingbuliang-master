@@ -65,7 +65,7 @@ npm test         # vitest：只跑不依赖引擎的纯逻辑（core/ 规则 + �
 npx tsc --noEmit # 类型检查（依赖编辑器生成的 temp/tsconfig.cocos.json，先开一次编辑器）
 ```
 
-测试只覆盖**不依赖引擎的纯逻辑**：`assets/scripts/core/` 的规则，加上 `ui/` 与 `game/` 里那几个刻意不 import 引擎的模块（`trayLayout`、`iconRowLayout`、`redrawGuard`、`RoundBackground`、`dropZone`、`GameLauncher`）。拖拽跟手、动画、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
+测试只覆盖**不依赖引擎**的东西：`assets/scripts/core/` 的规则，`ui/` 与 `game/` 里那几个刻意不 import 引擎的模块（`startPageLayout`、`trayLayout`、`iconRowLayout`、`redrawGuard`、`RoundBackground`、`dropZone`、`GameLauncher`），以及**场景骨架的锁定测试** `tests/startPageSkeleton.test.ts`——它把 `main.scene` 当静态 JSON 读，锁住开始页还剩哪些节点，同样不 import 引擎。拖拽跟手、动画、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
 
 ## 目录结构
 
@@ -78,9 +78,11 @@ assets/
     game/                      核心与表现层之间的桥：事件总线、会话组件、最高分存储
     ui/                        表现层：开始页 / 顶栏 / 订单卡 / 碗 / 配料盘 / 结算页 / 各类反馈
   resources/art/
-    backgrounds/               5 张背景：4 张单局随机池 + 1 张开始页专属（按文件名运行时加载，换图只换文件）
+    backgrounds/               5 张背景：4 张单局随机池 + 1 张开始页封面图
+                               （封面图上画着标题与副标题，改文案 = 重出图，见 docs/adr/0004；
+                                 全部按文件名运行时加载，换图只换文件）
     ingredients/               12 张配料图标（文件名即配料 id）
-    ui/                        开始页界面图 4 个文件：标题艺术字、按钮底图（正常 / 按下）、最高分奖杯
+    ui/                        开始页界面图 3 个文件：按钮底图（正常 / 按下）、最高分奖杯
                                （同样按文件名加载，同名覆盖即换图）
 docs/                          ADR、设计基线、背景与界面出图需求、agent 约定
 tests/                         不依赖引擎的纯逻辑单元测试（core/ 规则与引擎无关模块）
@@ -95,7 +97,8 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 
 - **配料图标**：项目方自绘透明底 PNG（文件名即 id，同名覆盖即换图），12 格各有独立图、辅以中文标签识别。
 - **背景图**：4 张单局背景（`1`–`4`）由项目方交付，压缩档位记在 `CREDITS.md`。
-- **开始页界面图**：4 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。
+- **开始页封面图**：`backgrounds/start-page.png`，标题与副标题画在图里——改开始页文案等于重出这张图（见 `docs/adr/0004-start-page-cover-art.md`）。
+- **开始页界面图**：3 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。
 - **音频**：无（本版本不做音频）。
 
 素材均为项目方自备原创，非第三方素材，无需对外署名，游戏内不设致谢文案。
@@ -105,5 +108,6 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - `CONTEXT.md`：领域词表（术语以它为准）
 - `docs/design/mvp-spec.md`：设计基线（玩法、界面、验收清单）
 - `docs/adr/0001-asset-sourcing-and-licensing.md`：素材来源与授权策略
-- `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍
-- `docs/art/ui-prompts.md`：开始页界面出图需求（标题艺术字 / 按钮底图两态 / 最高分奖杯）
+- `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍（内容清单部分已被 0004 取代）
+- `docs/adr/0004-start-page-cover-art.md`：开始页的标题与副标题烤进封面图，改文案 = 重出图
+- `docs/art/ui-prompts.md`：开始页界面出图需求（按钮底图两态 / 最高分奖杯；标题艺术字已作废）
