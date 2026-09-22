@@ -1,16 +1,21 @@
 import { _decorator, Component, Node } from 'cc';
-import { BOWL_DROP_ZONE_HEIGHT, BOWL_DROP_ZONE_WIDTH } from '../config/layout';
 import { STRINGS } from '../config/strings';
 import type { DragOverBowlPayload, RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
+import { BOWL_DROP_ZONE } from '../game/dropZone';
 import { renderIconRow } from './ingredientIcon';
 import { SignatureGuard } from './redrawGuard';
 import type { OutlinedText } from './uiFactory';
 import { createOutlinedText, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
-/** 碗里图标大小与间距：碗区宽 600，最多 6 项，横排不挤 */
+/** 碗里图标大小与间距：最多 6 项（1 汤底 + 5 小料），按这个尺寸横排只需 444 */
 const BOWL_ICON_SIZE = 64;
 const BOWL_ICON_GAP = 12;
+/**
+ * 图标行的宽（设计像素）：取的是"碗区内容宽度"，两端各让开一点，图标行不压到高亮框的边。
+ * 别再从落区宽减一个数算出来——两者语义无关，捆在一起会一起漂。
+ */
+const BOWL_ICON_ROW_WIDTH = 560;
 /** 碗区两行文字的纵向位置与字号（设计像素，以碗区中心为原点）：标题在上，空碗提示居中；与图标行（`BowlIcons`）不重叠就是按这两组值定的 */
 const BOWL_TITLE_Y = 180;
 const BOWL_TITLE_FONT = 30;
@@ -36,8 +41,8 @@ export class BowlView extends Component {
   private readonly redraw = new SignatureGuard();
 
   protected onLoad(): void {
-    // 高亮框与落点判定同源（同一份落区配置）：看得见的框即落区，判定再外扩容差一圈
-    this.highlightNode = createUiNode(this.node, 'BowlHighlight', BOWL_DROP_ZONE_WIDTH, BOWL_DROP_ZONE_HEIGHT);
+    // 尺寸取自落区模块：这里画的是**本体**那一圈（判定比它多一圈容差，见 game/dropZone.ts 文件头）
+    this.highlightNode = createUiNode(this.node, 'BowlHighlight', BOWL_DROP_ZONE.visualWidth, BOWL_DROP_ZONE.visualHeight);
     paintPanel(this.highlightNode, UI_COLOR.bowlHighlightFill, UI_COLOR.bowlHighlightBorder);
     this.highlightNode.active = false;
 
@@ -46,7 +51,7 @@ export class BowlView extends Component {
     // 图标行与配料盘、订单卡共用 ingredientIcon 那一套图标
     this.emptyHint = createOutlinedText(this.node, 'BowlEmptyHint', '', BOWL_EMPTY_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     this.emptyHint.node.setPosition(0, BOWL_EMPTY_Y, 0);
-    this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_DROP_ZONE_WIDTH - 40, BOWL_ICON_SIZE);
+    this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_ICON_ROW_WIDTH, BOWL_ICON_SIZE);
     this.iconRow.setPosition(0, 10, 0);
     bus.on(BusEvent.Render, this.onRender, this);
     bus.on(BusEvent.DragOverBowl, this.onDragOverBowl, this);

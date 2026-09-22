@@ -1,43 +1,37 @@
-import { _decorator, Component, UITransform, Vec3 } from 'cc';
-import { BOWL_DROP_ZONE_HEIGHT, BOWL_DROP_ZONE_WIDTH, DROP_ZONE_TOLERANCE_PX } from '../config/layout';
+import { _decorator, Component, Node, UITransform, Vec3 } from 'cc';
 import type { Session, SessionEvent } from '../core/session';
 import { createSession } from '../core/session';
 import type { DragEndPayload, DragPointPayload } from './bus';
 import { BusEvent, bus } from './bus';
-import { isWithinDropZone } from './dropZone';
-import type { DropZone } from './dropZone';
+import type { BowlDropZone, DropAnchor, DropZonePoint } from './dropZone';
+import { createBowlDropZone } from './dropZone';
 
 const { ccclass } = _decorator;
-
-/** 本局落区：以碗区中心为准的矩形 + 外扩容差，尺寸取自 config/layout（与看得见的高亮框同源） */
-const BOWL_DROP_ZONE: DropZone = {
-  width: BOWL_DROP_ZONE_WIDTH,
-  height: BOWL_DROP_ZONE_HEIGHT,
-  tolerance: DROP_ZONE_TOLERANCE_PX,
-};
 
 /**
  * 适配层：把 Cocos 的时间与输入翻译成核心调用，再把核心的事件广播给表现层。
  * 这里不写任何规则判断——错放扣几秒、这一单值多少分，全部由 core 决定。
  *
- * 拖拽的几何判定（松手点在不在碗区、带多少容差）属于"输入翻译"，也在这层做：
+ * 拖拽的几何判定（松手点在不在碗区、带多少容差）不在这层：它整块收在 game/dropZone.ts 的落区模块里。
+ * 本组件只交出松手点的世界坐标，并提供一个"碗区挂在哪"的锚点实现（见本文件末尾的 resolveBowlAnchor）——
  * 配料盘只认识手势不认识碗，碗只认识高亮事件不认识手指。
  */
 @ccclass('GameSession')
 export class GameSession extends Component {
   private session: Session | null = null;
-  /** 碗区的变换，第一次用到时再取（场景骨架不变的话整个单局只会取一次） */
-  private bowlTransform: UITransform | null = null;
-  /** 碗区节点缺失是否已告警：缺节点时每帧都会来取，只提醒一次免得刷屏 */
-  private bowlMissing = false;
+  /**
+   * 本局落区：每局新建（见 startRound），于是锚点解析与"只告警一次"的闩锁都跟着每局重来，
+   * 不需要复位方法；`BowlArea` 将来改为运行时装配也自然成立。
+   */
+  private dropZone: BowlDropZone | null = null;
 
   /** 开一局新单局（进入单局页或重开时调用） */
   startRound(): void {
     this.session = createSession();
-    // 每局复位碗区缓存与缺失告警标志：使「整个单局只会取一次」的作用域名副其实，
-    // 也为将来 BowlArea 改为运行时装配留出正确行为（不会因上一局的缺失判定而永久锁死）
-    this.bowlTransform = null;
-    this.bowlMissing = false;
+    this.dropZone = createBowlDropZone({
+      anchor: resolveBowlAnchor(this.node),
+      warn: (message) => console.warn(message),
+    });
     this.publish([]);
   }
 
@@ -67,13 +61,10 @@ export class GameSession extends Component {
   }
 
   /** 玩家的一次放入请求（点按与拖动落点殊途同归到这里） */
-  private applyDrop(ingredientId: string, point: { x: number; y: number } | null): void {
+  private applyDrop(ingredientId: string, point: DropZonePoint | null): void {
     if (!this.session) return;
     // 点按没有世界坐标，错放反馈就落在碗区中心，飘字与弹回才有合理起点
-    if (point === null) {
-      const bowl = this.resolveBowlTransform();
-      point = bowl ? { x: bowl.node.worldPosition.x, y: bowl.node.worldPosition.y } : { x: 0, y: 0 };
-    }
+    if (point === null) point = this.dropZone?.center() ?? { x: 0, y: 0 };
 
     const events = this.session.drop(ingredientId);
     this.publish(events);
@@ -102,30 +93,53 @@ export class GameSession extends Component {
     bus.emit(BusEvent.DragOverBowl, { overBowl: false });
   }
 
-  /** 松手点（含边缘容差）是否落在落区里：落区以碗区节点为中心，尺寸来自配置 */
+  /** 松手点（含边缘容差）是否落在落区里：几何、容差与缺锚点兜底都在落区模块，这里只交出世界坐标 */
   private isOverBowl(point: DragPointPayload): boolean {
-    const transform = this.resolveBowlTransform();
-    if (!transform) return false;
-    // 世界坐标 → 碗区局部坐标（这一步要引擎变换，留在适配层），几何判定交给纯函数
-    const local = transform.convertToNodeSpaceAR(new Vec3(point.x, point.y, 0));
-    return isWithinDropZone(local.x, local.y, BOWL_DROP_ZONE);
-  }
-
-  /** 场景骨架里的碗区节点；找不到时警告一次并按"永远不在碗上"处理 */
-  private resolveBowlTransform(): UITransform | null {
-    if (this.bowlTransform) return this.bowlTransform;
-    if (this.bowlMissing) return null;
-    const node = this.node.getChildByName('BowlArea');
-    this.bowlTransform = node?.getComponent(UITransform) ?? null;
-    if (!this.bowlTransform) {
-      this.bowlMissing = true;
-      console.warn('[GameSession] 找不到 BowlArea 或其 UITransform，拖动落点永远判定为碗外');
-    }
-    return this.bowlTransform;
+    return this.dropZone?.contains(point.x, point.y) ?? false;
   }
 
   private publish(events: SessionEvent[]): void {
     if (!this.session) return;
     bus.emit(BusEvent.Render, { state: this.session.state, events });
   }
+}
+
+/**
+ * 碗区锚点的 Cocos 实现：把 `BowlArea` 节点包成落区模块要的那三件事。
+ *
+ * 这是"落区模块不 import 引擎"的代价——全仓库唯一为此摸引擎的一小块，所以这里只做翻译：
+ * 缺节点与锚点不合格怎么兜底、要不要告警，一概不在这层判，都在 dropZone 模块里。
+ *
+ * 节点变换只解析一次并留在闭包里。落区实例每局新建、本适配器也跟着每局新建一份，
+ * 所以"每局重新解析"天然成立；场景骨架不变的话，一个单局里只会解析一次。
+ */
+function resolveBowlAnchor(host: Node): DropAnchor {
+  /** undefined = 还没解析过；null = 解析过但没找到 */
+  let transform: UITransform | null | undefined;
+
+  const resolve = (): UITransform | null => {
+    if (transform === undefined) {
+      transform = host.getChildByName('BowlArea')?.getComponent(UITransform) ?? null;
+    }
+    return transform;
+  };
+
+  return {
+    toLocal: (worldX, worldY) => {
+      const target = resolve();
+      if (!target) return null;
+      // 换算要用引擎的变换，所以留在这一侧；模块那边只收局部坐标做纯算术
+      const local = target.convertToNodeSpaceAR(new Vec3(worldX, worldY, 0));
+      return { x: local.x, y: local.y };
+    },
+    center: () => {
+      const target = resolve();
+      return target ? { x: target.node.worldPosition.x, y: target.node.worldPosition.y } : null;
+    },
+    anchorPoint: () => {
+      const target = resolve();
+      // 判定以节点原点为基准，所以这里交的是归一化锚点，不是世界坐标
+      return target ? { x: target.anchorX, y: target.anchorY } : null;
+    },
+  };
 }
