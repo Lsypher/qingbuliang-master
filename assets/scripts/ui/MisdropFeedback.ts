@@ -1,5 +1,5 @@
 import { _decorator, Component, Graphics, Label, Node, UIOpacity, Vec3, tween } from 'cc';
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
+import { COUNTDOWN_Y, SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import type { MisdropPayload } from '../game/bus';
@@ -83,7 +83,8 @@ export class MisdropFeedback extends Component {
   /** 飘字：在顶部"倒计时"标签右侧冒出 "-3 秒"，上飘同时淡出；深色描边保证在任意背景下都跳出来 */
   private floatPenalty(): void {
     const countdown = findNodeByName(this.node, 'CountdownLabel');
-    const baseWorld = countdown ? countdown.worldPosition : new Vec3(0, 604, 0);
+    // 找不到标签时退到它的版面位置：常量在 config/layout.ts，与 HudView 共用同一份，不在这里另写一个 604
+    const baseWorld = countdown ? countdown.worldPosition : new Vec3(0, COUNTDOWN_Y, 0);
     const local = toLocalPoint(this.node, baseWorld.x + COUNTDOWN_FLOAT_OFFSET_X, baseWorld.y);
 
     const float = createOutlinedText(

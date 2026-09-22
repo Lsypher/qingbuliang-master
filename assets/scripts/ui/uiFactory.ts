@@ -82,6 +82,12 @@ function outlineWidthFor(fontSize: number): number {
 }
 
 /**
+ * 文字节点的默认宽度（设计像素）：设计宽 720 留出左右各 30 的余量。
+ * `createOutlinedText` 与 `createLabel` 共用这一个默认值——"窄屏留边"这件事只有这一处来源，改这里两处一起变。
+ */
+const TEXT_WIDTH = 660;
+
+/**
  * 当前屏幕能看见的设计宽度。
  *
  * FitHeight 下，比 9:16 更窄的屏幕（现代全面屏手机、拖窄的桌面窗口）只看得见比 720 更窄的一条，
@@ -187,7 +193,6 @@ export function setLabelText(parent: Node, nodeName: string, text: string): void
 export interface OutlinedText {
   /** 文字节点：位置、缩放、淡出等整体动作都作用在它上面 */
   readonly node: Node;
-  /** 换字 */
   setText(text: string): void;
   /** 只换正文颜色。描边是"把字从背景上抠出来"的那一层，默认不跟着正文换 */
   setTextColor(color: Color): void;
@@ -212,7 +217,7 @@ export function createOutlinedText(
   fontSize: number,
   color: Color,
   outlineColor: Color,
-  width = 660,
+  width = TEXT_WIDTH,
 ): OutlinedText {
   const label = createLabel(parent, name, text, 0, fontSize, color, width);
   // 淡入淡出要就地取这个组件（见 ui/GuideHint.ts），所以建的时候就挂上，不留给调用方自己加
@@ -274,7 +279,7 @@ export function createLabel(
   y: number,
   fontSize: number,
   color: Color = UI_COLOR.textPrimary,
-  width = 660,
+  width = TEXT_WIDTH,
   x = 0,
 ): Label {
   const node = createUiNode(parent, name, width, fontSize * 1.6, y, x);

@@ -1,5 +1,6 @@
 import { _decorator, Component, Node, Tween, Vec3, tween } from 'cc';
 import { ROUND_DURATION_MS } from '../config/balance';
+import { COUNTDOWN_Y } from '../config/layout';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
@@ -11,9 +12,11 @@ const { ccclass } = _decorator;
 
 /**
  * 顶部信息条的版面（设计像素，以单局页中心为原点）：倒计时数字在上、进度条夹中间、统计行在下。
- * 这一条没有自己的底板（文字与进度条都压在每局随机背景图上），字号按"隔着一层美术也一眼扫到"定，不再往下调。
+ * 三个 y 彼此间距就是按这些值定的，改一个要连相邻那个一起看。
+ * 字号按"隔着一层美术也一眼扫到"定：倒计时最大、统计行小一号；这一条没有底板（文字与进度条都压在每局随机背景图上），
+ * 所以字号只往上调、不再往下压。
+ * `COUNTDOWN_Y` 不在这里：错放飘字也要读它，按 config/layout.ts 的约定把它提到了那边。
  */
-const COUNTDOWN_Y = 604;
 const COUNTDOWN_FONT = 34;
 const BAR_Y = 566;
 const STATS_Y = 528;

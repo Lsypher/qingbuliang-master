@@ -11,7 +11,7 @@ import { createOutlinedText, createUiNode, paintPanel, UI_COLOR } from './uiFact
 /** 碗里图标大小与间距：碗区宽 600，最多 6 项，横排不挤 */
 const BOWL_ICON_SIZE = 64;
 const BOWL_ICON_GAP = 12;
-/** 碗区两行文字的纵向位置与字号（设计像素，以碗区中心为原点）：标题在上，空碗提示居中 */
+/** 碗区两行文字的纵向位置与字号（设计像素，以碗区中心为原点）：标题在上，空碗提示居中；与图标行（`BowlIcons`）不重叠就是按这两组值定的 */
 const BOWL_TITLE_Y = 180;
 const BOWL_TITLE_FONT = 30;
 const BOWL_EMPTY_Y = 10;
@@ -44,7 +44,7 @@ export class BowlView extends Component {
     const title = createOutlinedText(this.node, 'BowlTitle', STRINGS.bowlTitle, BOWL_TITLE_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     title.node.setPosition(0, BOWL_TITLE_Y, 0);
     // 图标行与配料盘、订单卡共用 ingredientIcon 那一套图标
-    this.emptyHint = createOutlinedText(this.node, 'BowlItems', '', BOWL_EMPTY_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
+    this.emptyHint = createOutlinedText(this.node, 'BowlEmptyHint', '', BOWL_EMPTY_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     this.emptyHint.node.setPosition(0, BOWL_EMPTY_Y, 0);
     this.iconRow = createUiNode(this.node, 'BowlIcons', BOWL_DROP_ZONE_WIDTH - 40, BOWL_ICON_SIZE);
     this.iconRow.setPosition(0, 10, 0);

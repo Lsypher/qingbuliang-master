@@ -12,7 +12,7 @@ const { ccclass } = _decorator;
 /** 订单卡里"顾客要的配料"图标行：最多 6 项（1 汤底 + 5 小料），横排不挤 */
 const ORDER_ICON_SIZE = 52;
 const ORDER_ICON_GAP = 8;
-/** 三行内容的纵向位置（设计像素，以订单卡中心为原点）：标题在上、图标行居中、已放进度在下 */
+/** 三行内容的纵向位置（设计像素，以订单卡中心为原点）：标题在上、图标行居中、已放进度在下；三行不重叠就是按这些值与 `ORDER_ICON_SIZE` 定的 */
 const CARD_TITLE_Y = 45;
 const CARD_ICONS_Y = -55;
 const CARD_PROGRESS_Y = -155;

@@ -2,6 +2,10 @@
  * 版面常量：竖屏设计分辨率。
  * 与 `settings/v2/packages/project.json` 里的设计分辨率（720x1280、FitHeight）保持一致。
  * 背景铺满、自动装配与自检都读这里，别再各写一份 720 / 1280。
+ *
+ * 各区内部文字元素的纵坐标不在这里，由所在视图组件就近定义（单位同为设计像素，原点为那个区域的中心）：
+ * 那些值沿用改动前的版面，元素之间的间距就是按它们定的，改一个要连相邻元素一起看。
+ * 只有被**两个及以上模块**读到的版面值才提到本文件（如拖动落区、倒计时数字的纵坐标）。
  */
 export const SCREEN_WIDTH = 720;
 export const SCREEN_HEIGHT = 1280;
@@ -19,3 +23,10 @@ export const BOWL_DROP_ZONE_HEIGHT = 380;
  * 小屏上碗的边缘难瞄准，判定比看得见的落区大一圈，宁可宽容。
  */
 export const DROP_ZONE_TOLERANCE_PX = 40;
+
+/**
+ * 倒计时数字的纵向位置（设计像素，以单局页中心为原点）。
+ * 两个模块读它：`HudView` 据它摆数字；`MisdropFeedback` 在找不到那个标签时用它给"-3 秒"飘字做兜底——
+ * 故按文件头的约定提到这里，不在两处各写一个 604。
+ */
+export const COUNTDOWN_Y = 604;
