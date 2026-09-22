@@ -1,39 +1,32 @@
-import { _decorator, Button, Component, EventTouch, Node, UITransform, Vec3, view } from 'cc';
+import { _decorator, Component, EventTouch, Node, UITransform, Vec3, view } from 'cc';
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
+import { createDragGesture } from './dragGesture';
 import { createIngredientIcon, loadIngredientFrame } from './ingredientIcon';
 import { COLUMN_COUNT, ROW_COUNT, ROW_SPACING, SLOT_HEIGHT, trayLayout } from './trayLayout';
 import { createLabel, createUiNode, paintPanel, PreloadTask, UI_COLOR, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
 
-/** 手指挪动超过这个距离才算"拖动"，否则当作点按（Button 的 click 路径） */
-const DRAG_THRESHOLD_PX = 8;
 /** 跟手幽灵的尺寸：比格子小一号，跟着手指走又不挡太多视线 */
 const GHOST_WIDTH = 120;
 const GHOST_HEIGHT = 64;
-
-/** 一次进行中的拖动：哪格配料、哪个手指、走没走出"点按"范围 */
-interface ActiveDrag {
-  ingredientId: string;
-  touchId: number;
-  /** 幽灵的世界坐标起点，用于判断位移是否超过点按阈值 */
-  startX: number;
-  startY: number;
-  moved: boolean;
-  ghost: Node;
-}
 
 /**
  * 配料盘：把 12 格配料摆出来，负责"玩家用哪种手势选中了哪一格"。
  * 它不知道规则也不认识碗——点按只发一条事件；拖动只上报"拖着谁、松手在哪"，
  * 落点算不算进碗由适配层判定，放不放得进碗里由核心决定。
+ *
+ * "这一次触碰算点按还是算拖动"整块判定收在 `ui/dragGesture.ts`（不 import 引擎、有单测）；
+ * 本组件只负责跟手幽灵的建与拆，并把状态机给出的结论翻译成总线事件。
  */
 @ccclass('IngredientTray')
 export class IngredientTray extends Component {
   private slotNodes = new Map<string, Node>();
-  /** 全盘同时只认一根手指的拖动，第二根手指的按下直接忽略 */
-  private activeDrag: ActiveDrag | null = null;
+  /** 手势判定（阈值、一次只认一根手指、点按与拖动的分界）都在它里面 */
+  private readonly gesture = createDragGesture();
+  /** 这一段手势对应的可视物：跟手的幽灵 + 它代表哪一格（与状态机同生同灭） */
+  private active: { ingredientId: string; ghost: Node } | null = null;
 
   protected onLoad(): void {
     this.buildSlots();
@@ -74,12 +67,9 @@ export class IngredientTray extends Component {
       const labelColor = ingredient.category === 'base' ? UI_COLOR.textAccent : UI_COLOR.textPrimary;
       createLabel(slot, 'Name', ingredient.name, -28, 18, labelColor, slotWidth - 8);
 
-      const button = slot.addComponent(Button);
-      button.transition = Button.Transition.NONE;
       const ingredientId = ingredient.id;
-      slot.on(Button.EventType.CLICK, () => this.onSlotClicked(ingredientId), this);
-
-      // 拖拽手势与点按并存：挪动超过阈值按拖动走，否则仍交给 Button 的 click
+      // 点按不另挂 Button：越过阈值算拖动、没越过算点按，两类手势都由下面这四个 TOUCH_* 判（判定在 dragGesture 里）。
+      // 少一个 Button 不只是少一个组件——它当年只为拿一次 click，却带来"click 与 TOUCH_END 谁先到"这条时序依赖。
       slot.on(Node.EventType.TOUCH_START, (event: EventTouch) => this.onSlotTouchStart(ingredientId, event), this);
       slot.on(Node.EventType.TOUCH_MOVE, (event: EventTouch) => this.onSlotTouchMove(event), this);
       slot.on(Node.EventType.TOUCH_END, (event: EventTouch) => this.onSlotTouchFinished(event), this);
@@ -120,51 +110,41 @@ export class IngredientTray extends Component {
     });
   }
 
-  private onSlotClicked(ingredientId: string): void {
-    // 拖动途中松手也会触发 Button 的 click（手指落点可能还在格子里），
-    // 这类 click 已经由拖动路径处理过，不能再报一次，否则同一份配料进两次碗。
-    // 这依赖注册顺序：Button 在 addComponent 时先注册监听，click 总是先于本组件的 TOUCH_END 触发
-    if (this.activeDrag?.moved) return;
-    // 只上报"玩家点了谁"，判定权在核心
-    bus.emit(BusEvent.DropIngredient, ingredientId);
-  }
-
+  /**
+   * 触点落下：先建跟手幽灵，再把这一段手势交给状态机认领。
+   *
+   * 幽灵在**落下那一刻**就建（而不是越过阈值才建）：跟手的起点就是它，手指一动玩家就该看到手里有东西；
+   * 代价是点按也会建一份、同一帧再拆掉，看不见也不影响。
+   */
   private onSlotTouchStart(ingredientId: string, event: EventTouch): void {
-    // 已经有一根手指在拖了：后续手指一律不接
-    if (this.activeDrag) return;
-
     const ghost = this.createGhost(ingredientId);
     if (!ghost) return;
+
     // 幽灵世界坐标就是拖动位置的基准，后续每帧用触点增量推进，全程不需要再做坐标换算
     const world = ghost.worldPosition;
-    this.activeDrag = {
-      ingredientId,
-      touchId: event.getID(),
-      startX: world.x,
-      startY: world.y,
-      moved: false,
-      ghost,
-    };
+    // 已经有一根手指在拖时这次触碰不接（"一次只认一根手指"的判定在状态机里），刚建的幽灵就地拆掉
+    if (!this.gesture.start(event.getID(), world.x, world.y)) {
+      ghost.destroy();
+      return;
+    }
+    this.active = { ingredientId, ghost };
   }
 
   private onSlotTouchMove(event: EventTouch): void {
-    const drag = this.activeDrag;
-    // 触摸事件只会派回"按下时抓住它的节点"，但仍要核对触点 id，防多指串扰
-    if (!drag || event.getID() !== drag.touchId) return;
+    const drag = this.active;
+    if (!drag) return;
 
-    // 用 UI 坐标系的位移增量挪幽灵：增量与坐标原点无关，跟手且无需换算
+    // 用 UI 坐标系的位移增量算出挪到哪儿（增量与坐标原点无关，跟手且无需换算）
     const delta = event.getUIDelta();
-    drag.ghost.setPosition(drag.ghost.position.x + delta.x, drag.ghost.position.y + delta.y, 0);
+    const before = drag.ghost.worldPosition;
+    const next = { x: before.x + delta.x, y: before.y + delta.y };
+    // **先问状态机"这个触点算不算本手势的"，算才动幽灵**：触摸事件会派回各自 TOUCH_START 认领的那个格子，
+    // 所以第二根手指按下另一格时，它的每一次移动都会到这里来；先挪再判的话，跟手的幽灵会被另一根手指拽走
+    const moved = this.gesture.move(event.getID(), next.x, next.y);
+    if (!moved) return;
 
-    const world = drag.ghost.worldPosition;
-    const distance = Math.hypot(world.x - drag.startX, world.y - drag.startY);
-    if (!drag.moved && distance > DRAG_THRESHOLD_PX) {
-      // 一旦越过阈值就按拖动算：Button 的 click 会在松手时被拦下
-      drag.moved = true;
-    }
-    if (drag.moved) {
-      bus.emit(BusEvent.DragMoved, { x: world.x, y: world.y });
-    }
+    drag.ghost.setPosition(drag.ghost.position.x + delta.x, drag.ghost.position.y + delta.y, 0);
+    if (moved.dragging) bus.emit(BusEvent.DragMoved, { x: moved.x, y: moved.y });
   }
 
   /**
@@ -172,31 +152,37 @@ export class IngredientTray extends Component {
    * 引擎的触摸是"认领"模型——move/end/cancel 都派回 TOUCH_START 认领事件的格子；
    * 关键在抬起那一刻引擎会对格子再做一次命中测试：手指还在格子上才派 END，
    * 拖出格子后松手派的是 CANCEL。而"拖出去松手"正是拖拽的常态，不是异常，
-   * 所以两条路都必须做落点判定，否则拖到碗上松手永远无效（点按不受影响）。
+   * 所以两条路都得走完判定，否则拖到碗上松手永远无效（点按不受影响）。
+   *
+   * 是"点按"还是"拖动结束"由状态机给（分界就是那个阈值），两条路各发一条事件。
    */
   private onSlotTouchFinished(event: EventTouch): void {
-    const drag = this.activeDrag;
-    if (!drag || event.getID() !== drag.touchId) return;
+    const drag = this.active;
+    if (!drag) return;
+    const ended = this.gesture.finish(event.getID());
+    // null = 不是本手势认领的那个触点
+    if (!ended) return;
 
-    if (drag.moved) {
+    if (ended.dragged) {
       // 松手落点交给适配层判定；碗里收不收由核心说了算
-      const world = drag.ghost.worldPosition;
-      bus.emit(BusEvent.DragEnded, { ingredientId: drag.ingredientId, x: world.x, y: world.y });
+      bus.emit(BusEvent.DragEnded, { ingredientId: drag.ingredientId, x: ended.x, y: ended.y });
+    } else {
+      // 没挪动过的就是点按：直接请核心放入，不经过落点判定
+      bus.emit(BusEvent.DropIngredient, drag.ingredientId);
     }
-    // 没挪动过的就是点按：Button 的 click 路径已经在别处上报，这里只管收尾
     this.endDrag();
   }
 
-  /** 收尾：熄掉高亮、拆掉幽灵、归还"同一时间一次拖动"的名额 */
+  /** 收尾：拆掉跟手幽灵、清掉这一段手势的可视状态 */
   private endDrag(): void {
-    if (!this.activeDrag) return;
-    this.activeDrag.ghost.destroy();
-    this.activeDrag = null;
+    this.active?.ghost.destroy();
+    this.active = null;
   }
 
-  /** 非正常收尾（组件销毁/页面失活）：按"拖动被打断"处理 */
+  /** 非正常收尾（组件销毁 / 页面失活 / 视口变化重排）：按"拖动被打断"处理并告诉适配层 */
   private abandonDrag(): void {
-    if (!this.activeDrag) return;
+    if (!this.active) return;
+    this.gesture.interrupt();
     bus.emit(BusEvent.DragCanceled);
     this.endDrag();
   }
