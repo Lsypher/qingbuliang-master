@@ -76,11 +76,9 @@ export class MisdropFeedback extends BusComponent {
 
   /** 飘字：在顶部"倒计时"标签右侧冒出 "-3 秒"，上飘同时淡出；深色描边保证在任意背景下都跳出来 */
   private floatPenalty(): void {
-    const countdown = findNodeByName(this.node, 'CountdownLabel');
-    // 找不到标签时退到它的版面位置：常量在 config/layout.ts，与 HudView 共用同一份，不在这里另写一个 604
-    const baseWorld = countdown ? countdown.worldPosition : new Vec3(0, COUNTDOWN_Y, 0);
-    const local = toLocalPoint(this.node, baseWorld.x + COUNTDOWN_FLOAT_OFFSET_X, baseWorld.y);
-
+    // 位置直接用版面常量，**不去顶栏的节点树里找那个标签**：倒计时标签与本组件建的飘字都挂在游戏页上
+    // （HudView 与 MisdropFeedback 都是游戏页的组件），局部坐标同系，所以"标签右侧偏移 220"
+    // 在我们自己的局部坐标里就是 (220, COUNTDOWN_Y)。常量与 HudView 共用同一份，见 config/layout.ts。
     const float = createOutlinedText(
       this.node,
       'MisdropFloat',
@@ -90,7 +88,7 @@ export class MisdropFeedback extends BusComponent {
       UI_COLOR.misdropOutline,
       240,
     ).node;
-    float.setPosition(local.x, local.y, 0);
+    float.setPosition(COUNTDOWN_FLOAT_OFFSET_X, COUNTDOWN_Y, 0);
     floatAway(float, { duration: FLOAT_DURATION, rise: FLOAT_RISE });
   }
 
@@ -116,15 +114,4 @@ export class MisdropFeedback extends BusComponent {
       .call(() => ghost.destroy())
       .start();
   }
-}
-
-/** 递归按名字找节点：视图节点都是运行时建的，跨层级只能按名字找 */
-function findNodeByName(root: Node | null, name: string): Node | null {
-  if (!root) return null;
-  if (root.name === name) return root;
-  for (const child of root.children) {
-    const hit = findNodeByName(child, name);
-    if (hit) return hit;
-  }
-  return null;
 }

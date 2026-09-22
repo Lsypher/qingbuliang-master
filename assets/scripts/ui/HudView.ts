@@ -72,7 +72,8 @@ export class HudView extends BusComponent {
 
   /** 倒计时区：上一行数字，下一行进度条 */
   private buildCountdown(): void {
-    // 节点名保持 CountdownLabel：错放的"-3 秒"按名字锚到它旁边（见 ui/MisdropFeedback.ts）
+    // 纵向位置必须与 config/layout.ts 的 COUNTDOWN_Y 一致：错放的"-3 秒"按那条常量摆到数字右侧，
+    // 不再按节点名去顶栏里找它（见 ADR-0009）；节点名留着只是为了在层级面板里认得出
     this.countdownLabel = createOutlinedText(this.node, 'CountdownLabel', '', COUNTDOWN_FONT, UI_COLOR.textAccent, UI_COLOR.textOutline);
     this.countdownLabel.node.setPosition(0, COUNTDOWN_Y, 0);
 
