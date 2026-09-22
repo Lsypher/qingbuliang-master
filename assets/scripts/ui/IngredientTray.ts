@@ -2,15 +2,12 @@ import { _decorator, Component, EventTouch, Node, UITransform, Vec3, view } from
 import { ALL_INGREDIENTS } from '../config/ingredients';
 import { BusEvent, bus } from '../game/bus';
 import { createDragGesture } from './dragGesture';
-import { createIngredientIcon, loadIngredientFrame } from './ingredientIcon';
+import { createIngredientGhost } from './ingredientGhost';
+import { createIngredientIcon } from './ingredientIcon';
 import { COLUMN_COUNT, ROW_COUNT, ROW_SPACING, SLOT_HEIGHT, trayLayout } from './trayLayout';
-import { createLabel, createUiNode, paintPanel, PreloadTask, UI_COLOR, visibleWidth } from './uiFactory';
+import { createLabel, createUiNode, paintPanel, UI_COLOR, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
-
-/** 跟手幽灵的尺寸：比格子小一号，跟着手指走又不挡太多视线 */
-const GHOST_WIDTH = 120;
-const GHOST_HEIGHT = 64;
 
 /**
  * 配料盘：把 12 格配料摆出来，负责"玩家用哪种手势选中了哪一格"。
@@ -92,25 +89,6 @@ export class IngredientTray extends Component {
   }
 
   /**
-   * 交出 12 项预载任务（过场期间由过场层跑），一项对应一格配料图标。
-   *
-   * 谁拥有资源谁交任务：加载路径留在配料盘自己这一层，过场只数"已决几项"、不区分成败
-   * （缺图各有各的兜底，不在这里再判一次）。每项**有结果**（成功或失败）时调用 `done`——
-   * 失败也计入已决并放行，缺的那格沿用既有兜底（只显示中文标签），不阻塞进局。
-   *
-   * 帧加载到手就进共享缓存（`ingredientIcon` 的模块级缓存，由 `loadIngredientFrame` 自动写入）：
-   * 过场结束、配料盘建格子时由 `createIngredientIcon` 同步取用，首帧就位、不逐格冒出。
-   * 配料盘与订单卡、碗共用同一份缓存，不各维护一份、避免不同步。
-   * 本方法在过场开始前被组合根调用，那时本组件 `onLoad` 还没跑（单局页还隐藏），
-   * 所以这里不依赖任何由 `onLoad` 建立的字段。
-   */
-  preloadIcons(): PreloadTask[] {
-    return ALL_INGREDIENTS.map((ingredient) => (done) => {
-      loadIngredientFrame(ingredient.id, () => done());
-    });
-  }
-
-  /**
    * 触点落下：先建跟手幽灵，再把这一段手势交给状态机认领。
    *
    * 幽灵在**落下那一刻**就建（而不是越过阈值才建）：跟手的起点就是它，手指一动玩家就该看到手里有东西；
@@ -187,30 +165,23 @@ export class IngredientTray extends Component {
     this.endDrag();
   }
 
-  /** 造一个跟着手指走的幽灵：画成小面板 + 配料名，挂在单局页顶层 */
+  /** 造一个跟着手指走的幽灵：长什么样由 ui/ingredientGhost.ts 一处说了算，这里只算"起手落在源格子中心" */
   private createGhost(ingredientId: string): Node | null {
     const slot = this.slotNodes.get(ingredientId);
     const parent = this.node.parent;
     if (!slot || !parent) return null;
 
-    const ingredient = ALL_INGREDIENTS.find((item) => item.id === ingredientId);
-    const ghost = createUiNode(parent, 'DragGhost', GHOST_WIDTH, GHOST_HEIGHT);
-    // 描边用强调色，跟配料盘里的静态格子区分开，一眼能看出"手里拿着东西"
-    paintPanel(ghost, UI_COLOR.panel, UI_COLOR.textAccent);
-    // 跟手幽灵也带上图标 + 名称，和配料盘里的格子保持同一套视觉语言
-    const ghostIcon = createIngredientIcon(ghost, ingredientId, 36, 'Icon');
-    ghostIcon.setPosition(0, 12, 0);
-    createLabel(ghost, 'Name', ingredient ? ingredient.name : ingredientId, -16, 18, UI_COLOR.textPrimary, GHOST_WIDTH - 12);
-
-    // 起手落在源格子中心：取格子世界坐标，换算成幽灵父节点的局部坐标
-    const transform = parent.getComponent(UITransform);
+    // 取格子世界坐标，换算成幽灵父节点的局部坐标
     const slotWorld = slot.worldPosition;
-    if (transform) {
-      const local = transform.convertToNodeSpaceAR(new Vec3(slotWorld.x, slotWorld.y, 0));
-      ghost.setPosition(local.x, local.y, 0);
-    } else {
-      ghost.setPosition(slotWorld.x, slotWorld.y, 0);
-    }
-    return ghost;
+    const transform = parent.getComponent(UITransform);
+    const local = transform ? transform.convertToNodeSpaceAR(new Vec3(slotWorld.x, slotWorld.y, 0)) : slotWorld;
+
+    return createIngredientGhost(parent, {
+      ingredientId,
+      name: 'DragGhost',
+      // 描边用强调色：跟配料盘里的静态格子区分开，一眼看出"手里拿着东西"
+      border: UI_COLOR.textAccent,
+      at: { x: local.x, y: local.y },
+    });
   }
 }

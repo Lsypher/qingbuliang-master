@@ -1,32 +1,36 @@
 import { Color, Node, Sprite, SpriteFrame, UITransform } from 'cc';
+import { ALL_INGREDIENTS } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import { iconRowLayout } from './iconRowLayout';
+import type { PreloadTask } from './uiFactory';
 import { createOutlinedText, createUiNode, loadSpriteFrame, UI_COLOR } from './uiFactory';
+
+/**
+ * 配料图标模块：12 张原创手绘透明底 PNG 的取帧、缓存、建图标与横排渲染都收在这里。
+ *
+ * 对外只有三件事——**预载全部**（过场期间跑）、**建一个图标**、**渲染一行图标**；
+ * 帧怎么缓存、什么时候退回异步加载、缺图怎么兜底都是实现细节。以前不是这样：
+ * 缓存要外部经一个导出的 `loadIngredientFrame` 写入，建图标还要多传一个参数在三态里选一个，
+ * 于是"过场预载"与"建格子"两边都得知道缓存的状态。
+ *
+ * 12 张图是配料盘、订单卡、碗与幽灵共用的资源，所以预载由本模块交给过场、不挂在某一屏上
+ * ——由哪一屏发起只是时序上的偶然。
+ */
 
 /**
  * 配料图标目录：12 张原创手绘透明底 PNG，文件名即配料 id。
  * 与背景图同理——换图（同名替换）不动代码、也无需回编辑器接线；
  * 只有增删配料才需要改 `config/ingredients.ts`。
  */
-export const INGREDIENT_DIR = 'art/ingredients';
+const INGREDIENT_DIR = 'art/ingredients';
 
 /**
- * 配料图标帧的共享缓存：按 id 存 SpriteFrame（加载失败记 null）。
+ * 帧缓存：按 id 存 SpriteFrame（加载失败存 null，用来标记"已决"）。
  *
- * 谁拥有资源谁预载：过场期间由配料盘统一把 12 张图加载进来（见 IngredientTray.preloadIcons，
- * 它内部走的就是下面的 `loadIngredientFrame`，结果会自动写进这份缓存）。订单卡、碗、跟手幽灵等
- * 所有用到配料图标的地方，都从这份缓存**同步**取用——过场放行时早已就绪，进单局页那一帧就位、
- * 不逐格冒出，与背景预载同理。只有"还没预载到"才退回异步加载（兜底，理论上不会走到）。
- *
- * 用模块级单例而非各组件各自缓存：避免配料盘、订单卡各维护一份、彼此不同步；
- * 全部图标的预载与取用都收口到本文件。
+ * 模块级单例而非各视图各持一份：配料盘、订单卡、碗、幽灵都取它，免得彼此不同步。
+ * **不对外开放读写**——外部要图标就走 `createIngredientIcon`，写缓存的时机由本模块说了算。
  */
 const ingredientFrameCache = new Map<string, SpriteFrame | null>();
-
-/** 取某配料已预载到手的帧：未预载返回 undefined、预载失败返回 null、成功返回帧 */
-function getCachedIngredientFrame(id: string): SpriteFrame | null | undefined {
-  return ingredientFrameCache.get(id);
-}
 
 /**
  * "已在碗里"的图标压暗到这个不透明度：还能认出是什么，但明显退到背景里去。
@@ -35,14 +39,28 @@ function getCachedIngredientFrame(id: string): SpriteFrame | null | undefined {
 const CHECKED_ALPHA = 110;
 
 /**
+ * 交出全部配料的预载任务（过场期间由过场层跑），一项对应一格图标。
+ *
+ * 谁拥有资源谁交任务：加载路径留在本模块，过场只数"已决几项"、不区分成败
+ * （缺图各有各的兜底，不在这里再判一次）。每项**有结果**（成功或失败）时调用 `done`——
+ * 失败也计入已决并放行，缺的那格只显示中文标签，不阻塞进局。
+ * 帧到手就进共享缓存，过场放行后建图标能同步取用，首帧就位、不逐格冒出。
+ */
+export function preloadIngredientIcons(): PreloadTask[] {
+  return ALL_INGREDIENTS.map((ingredient) => (done) => {
+    loadIngredientFrame(ingredient.id, () => done());
+  });
+}
+
+/**
  * 异步取某配料的图标 SpriteFrame；路径固定为 `${INGREDIENT_DIR}/${id}`。
- * 加载失败回调 null，由调用方决定是否兜底（目前配料盘/碗/订单卡都只显示标签，不致命）。
+ * 加载失败回调 null，由调用方决定是否兜底（目前只显示中文标签，不致命）。
  * 取图本身走界面统一的加载入口，这里只留"配料 id → 路径"这一段本模块自己的约定。
  */
-export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | null) => void): void {
+function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | null) => void): void {
   loadSpriteFrame(`${INGREDIENT_DIR}/${id}`, (frame, error) => {
     // 无论成败都写进共享缓存：成功存入帧、失败存 null 以标记"已决"，
-    // 订单卡等下游就能同步识别"加载过但没拿到"，不重复读盘也不阻塞进局。
+    // 下游就能同步识别"加载过但没拿到"，不重复读盘也不阻塞进局。
     ingredientFrameCache.set(id, frame);
     if (!frame) {
       console.warn('[ingredientIcon] 图标加载失败，已跳过', id, error);
@@ -57,18 +75,12 @@ export function loadIngredientFrame(id: string, onLoad: (frame: SpriteFrame | nu
  * 建一个图标节点（挂 Sprite）并填上对应配料图标。
  * `size` 是格子边长：图标按原图比例 contain 进格子（不拉伸变形），节点锚点居中，方便横排对齐。
  *
- * `preloadedFrame` 为已预载到手的帧（过场期间先加载的那一份）：
- * - 传 `undefined` → 走正常异步加载（标盘之外、缓存未热的路径才用）；
- * - 传**有效帧** → 同步贴上，配料盘建格子的那一帧图标就位，不出现逐格冒出的过程；
- * - 传 `null` → 预载失败，沿用既有兜底（只显示中文标签），这一格不阻塞进局。
+ * 帧从哪来由本模块自己判（调用方不必知道）：
+ * - 缓存里已有帧 → 同步贴上。过场预载过，所以配料盘建格子的那一帧图标就位、不逐格冒出；
+ * - 缓存记着"已决但失败" → 不重复读盘，沿用兜底（只显示中文标签）；
+ * - 缓存里还没有 → 退回异步加载（兜底，理论上过场放行时早已就绪）。
  */
-export function createIngredientIcon(
-  parent: Node,
-  id: string,
-  size: number,
-  name = 'Icon',
-  preloadedFrame?: SpriteFrame | null,
-): Node {
+export function createIngredientIcon(parent: Node, id: string, size: number, name = 'Icon'): Node {
   const node = createUiNode(parent, name, size, size);
   const sprite = node.addComponent(Sprite);
   // 用 CUSTOM：图标被拉到格子大小；但实际尺寸由下面 apply 按原图比例收成 contain，
@@ -87,24 +99,18 @@ export function createIngredientIcon(
     }
   };
 
-  // 贴图优先级：显式传入的预载帧 > 共享缓存里的帧 > 异步加载兜底（缓存由过场预载写入，见文件头）
-  if (preloadedFrame !== undefined) {
-    // 传了预载帧：null 表示预载失败，不赋图、只留中文标签兜底
-    if (preloadedFrame) apply(preloadedFrame);
+  const cached = ingredientFrameCache.get(id);
+  if (cached) {
+    apply(cached);
+  } else if (cached === null) {
+    // 已决且失败：不再重复读盘，只留中文标签兜底
   } else {
-    const cached = getCachedIngredientFrame(id);
-    if (cached) {
-      apply(cached);
-    } else if (cached === null) {
-      // 已决且失败：不再重复读盘，只留中文标签兜底
-    } else {
-      // 还没预载到（理论上过场放行时早已就绪，这里只是兜底）：异步加载并写回缓存
-      loadIngredientFrame(id, (frame) => {
-        // 等待期间节点可能已被销毁（跟手幽灵抬手即拆、图标行重建）：销毁后 sprite.node 被置空，
-        // 此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验
-        if (frame && node.isValid && sprite.isValid) apply(frame);
-      });
-    }
+    // 还没预载到：异步加载并写回缓存
+    loadIngredientFrame(id, (frame) => {
+      // 等待期间节点可能已被销毁（跟手幽灵抬手即拆、图标行重建）：销毁后 sprite.node 被置空，
+      // 此时再赋 spriteFrame 会让引擎内部访问 null 崩溃，必须先校验
+      if (frame && node.isValid && sprite.isValid) apply(frame);
+    });
   }
   return node;
 }

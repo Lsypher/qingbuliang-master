@@ -6,7 +6,7 @@ import { BusComponent } from '../game/busComponent';
 import { GameLauncher } from '../game/GameLauncher';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
-import { IngredientTray } from './IngredientTray';
+import { preloadIngredientIcons } from './ingredientIcon';
 import { MisdropFeedback } from './MisdropFeedback';
 import { PrepareTransition } from './PrepareTransition';
 import { ResultView } from './ResultView';
@@ -51,11 +51,6 @@ export class GameRoot extends BusComponent {
    */
   private background: BackgroundView | null = null;
   /**
-   * 配料盘：本局 12 格配料图标的预载任务经它。
-   * 组合根只负责"进单局前请它交出预载任务、转交给过场"，加载路径留在配料盘自己那层，不知道有哪 12 格。
-   */
-  private tray: IngredientTray | null = null;
-  /**
    * 开局器：把"过场期间只开一局 + 交接后延迟一帧解锁"这段时序规则收在 game/GameLauncher.ts。
    * 组合根只交出三样能力（过场在不在、怎么亮、怎么延迟一帧），不再自己管那个标志。
    */
@@ -69,7 +64,6 @@ export class GameRoot extends BusComponent {
     this.bindClick(this.startButton, this.showGame);
     this.bindClick(this.restartButton, this.showGame);
     this.assembleBackground();
-    this.assembleTray();
     this.assembleGameFeedback();
     this.assemblePrepareTransition();
     this.showStart();
@@ -89,23 +83,6 @@ export class GameRoot extends BusComponent {
     }
     // 留下引用：进单局前要请它先抽定本局背景（见 showGame）
     this.background = backgroundNode.getComponent(BackgroundView) ?? backgroundNode.addComponent(BackgroundView);
-  }
-
-  /**
-   * 兜底装配配料盘引用：场景里没挂 IngredientTray 时补上。
-   *
-   * 同样带存在性判断、同样只兜"场景漏挂"；留下引用是为进单局前请它交出 12 格图标的预载任务
-   * （见 showGame）。本组件 `onLoad` 此时还没跑（单局页还隐藏），但组件实例已存在，getComponent 能取到。
-   *
-   * 用 `getComponentInChildren` 而非 `getComponent`：配料盘组件实际挂在 `GamePage` 的子节点
-   * `TrayArea` 上，只查自身会取不到（`this.tray` 变 null、`preloadIcons()` 永不执行，
-   * 于是底部配料与顶部订单卡的图标都退回异步加载、慢几帧）。`getComponentInChildren` 递归查整棵子树，
-   * 组件挂在 `GamePage` 自身或任意子节点都能找到，属更稳的兜底。
-   */
-  private assembleTray(): void {
-    const gamePage = this.gamePage;
-    if (!gamePage) return;
-    this.tray = gamePage.getComponent(IngredientTray) ?? gamePage.getComponentInChildren(IngredientTray) ?? null;
   }
 
   /**
@@ -175,11 +152,12 @@ export class GameRoot extends BusComponent {
    * "点到底下按钮"，但挡不掉已经落在按钮上、过场出现后才抬起的第二根手指，那一路只有它能挡。
    */
   showGame(): void {
-    // 预载任务由"拥有资源那层"提供：背景层交出本局背景、配料盘交出 12 格图标。
+    // 预载任务由"拥有资源那层"提供：背景层交出本局背景，配料图标模块交出 12 格图标
+    // （图标是配料盘、订单卡、碗与幽灵共用的资源，所以问那个模块要，不经过任何一屏）。
     // 过场按"已决几项 / 总项数"放行，两个来源各自把加载路径留在本层，组合根只做编排。
     const preloads: PreloadTask[] = [];
     if (this.background) preloads.push(this.background.rollRoundBackground());
-    if (this.tray) preloads.push(...this.tray.preloadIcons());
+    preloads.push(...preloadIngredientIcons());
     this.launcher.launch(() => this.enterGame(), preloads);
   }
 

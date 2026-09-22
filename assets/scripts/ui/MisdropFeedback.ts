@@ -1,11 +1,11 @@
-import { _decorator, Graphics, Label, Node, UIOpacity, Vec3, tween } from 'cc';
+import { _decorator, Graphics, Node, UIOpacity, Vec3, tween } from 'cc';
 import { COUNTDOWN_Y, SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
-import { ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import type { MisdropPayload } from '../game/bus';
 import { BusEvent } from '../game/bus';
 import { BusComponent } from '../game/busComponent';
-import { createLabel, createOutlinedText, createUiNode, floatAway, paintPanel, toLocalPoint, UI_COLOR } from './uiFactory';
+import { createIngredientGhost } from './ingredientGhost';
+import { createOutlinedText, createUiNode, floatAway, toLocalPoint, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
 
@@ -19,9 +19,6 @@ const FLOAT_RISE = 24;
 const FLOAT_DURATION = 0.6;
 /** 弹回动画时长（秒）：比飘字短，先一步归位，呼应"立刻弹回" */
 const BOUNCE_DURATION = 0.32;
-/** 弹回幽灵尺寸：比配料盘格子小一号，和拖拽幽灵同款，一眼认出是"手里那份配料" */
-const BOUNCE_GHOST_WIDTH = 120;
-const BOUNCE_GHOST_HEIGHT = 64;
 /** 飘字相对"倒计时"标签的水平偏移（设计像素）：落在其右侧，明确"扣在倒计时上" */
 const COUNTDOWN_FLOAT_OFFSET_X = 220;
 /** 飘字字号：比倒计时本体大一圈，凑近也能一眼看见 */
@@ -97,13 +94,19 @@ export class MisdropFeedback extends BusComponent {
     floatAway(float, { duration: FLOAT_DURATION, rise: FLOAT_RISE });
   }
 
-  /** 弹回：在落点生成一份配料幽灵，飞回配料盘，呼应"配料弹回配料盘" */
+  /**
+   * 弹回：在落点生成一份配料幽灵，飞回配料盘，呼应"配料弹回配料盘"。
+   * 幽灵的样子（面板 / 图标 / 名称 / 尺寸）与跟手幽灵共用 ui/ingredientGhost.ts 一处实现，
+   * 只有描边色不同：这里用错放红说明"这一份放错了"。
+   */
   private bounceBack(payload: MisdropPayload): void {
     const start = toLocalPoint(this.node, payload.x, payload.y);
-    const ghost = createUiNode(this.node, 'MisdropBounce', BOUNCE_GHOST_WIDTH, BOUNCE_GHOST_HEIGHT);
-    paintPanel(ghost, UI_COLOR.panel, UI_COLOR.misdropText);
-    createLabel(ghost, 'Name', ingredientName(payload.ingredientId), 0, 26, UI_COLOR.textPrimary, BOUNCE_GHOST_WIDTH - 12);
-    ghost.setPosition(start.x, start.y, 0);
+    const ghost = createIngredientGhost(this.node, {
+      ingredientId: payload.ingredientId,
+      name: 'MisdropBounce',
+      border: UI_COLOR.misdropText,
+      at: { x: start.x, y: start.y },
+    });
 
     // 终点取配料盘世界坐标（找不到就退回落点正下方），转回本节点局部坐标再补间
     const trayWorld = this.trayNode ? this.trayNode.worldPosition : new Vec3(payload.x, payload.y - 320, 0);
