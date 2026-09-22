@@ -10,7 +10,7 @@ import { createUiNode, loadSpriteFrame, paintPanel, UI_COLOR } from './uiFactory
 const { ccclass } = _decorator;
 
 /**
- * 背景层：开始页用专属背景图（固定不随机），进单局才从背景池随机抽一张，同一局内不切换；
+ * 背景层：开始页用专属的**封面图**（固定不随机），进单局才从背景池随机抽一张，同一局内不切换；
  * 开始页与结算页把它压暗。
  *
  * 纯表现，不参与任何规则判定：它只听"现在切到哪一页"这一条广播，
@@ -46,7 +46,7 @@ export class BackgroundView extends Component {
 
     bus.on(BusEvent.PageShown, this.onPageShown, this);
 
-    // 开始页用专属背景图垫着；等玩家开局才随机换
+    // 开始页用封面图垫着；等玩家开局才随机换
     this.showStartBackground();
   }
 
@@ -55,7 +55,7 @@ export class BackgroundView extends Component {
   }
 
   /**
-   * 跟着页面走：进单局显示本局抽定的那张（这一局里就不再变），回开始页换回专属背景，
+   * 跟着页面走：进单局显示本局抽定的那张（这一局里就不再变），回开始页换回封面图，
    * 其余页面一律压暗给文字让路。
    * 压暗只有这一个来源——"回开始页忘了解压暗"这种错不会再有第二个地方可以漏。
    */
@@ -65,7 +65,7 @@ export class BackgroundView extends Component {
     else if (page === 'start') this.showStartBackground();
   }
 
-  /** 开始页专属背景：固定一张，不参与随机 */
+  /** 开始页封面图：固定一张，不参与随机 */
   private showStartBackground(): void {
     this.showAt(`${BACKGROUND_DIR}/${START_BACKGROUND}`);
   }

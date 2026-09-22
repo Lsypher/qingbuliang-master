@@ -7,7 +7,7 @@
 export const BACKGROUND_DIR = 'art/backgrounds';
 
 /**
- * 开始页专属背景：固定一张、不随机，也不进单局背景池——
+ * 开始页**封面图**：固定一张、不随机，也不进单局背景池——
  * 开始页要的是"这款游戏的门面"，随机四张会让首屏每次长得不一样。
  */
 export const START_BACKGROUND = 'start-page';
