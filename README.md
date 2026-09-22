@@ -65,7 +65,7 @@ npm test         # vitest：只跑不依赖引擎的纯逻辑（core/ 规则 + �
 npx tsc --noEmit # 类型检查（依赖编辑器生成的 temp/tsconfig.cocos.json，先开一次编辑器）
 ```
 
-测试只覆盖**不依赖引擎**的东西：`assets/scripts/core/` 的规则，`ui/` 与 `game/` 里那几个刻意不 import 引擎的模块（`startPageLayout`、`trayLayout`、`iconRowLayout`、`redrawGuard`、`RoundBackground`、`dropZone`、`GameLauncher`），以及**场景骨架的锁定测试** `tests/startPageSkeleton.test.ts`——它把 `main.scene` 当静态 JSON 读，锁住开始页还剩哪些节点，同样不 import 引擎。拖拽跟手、动画、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
+测试只覆盖**不依赖引擎**的东西：`assets/scripts/core/` 的规则，`ui/` 与 `game/` 里那几个刻意不 import 引擎的模块（`startPageLayout`、`trayLayout`、`iconRowLayout`、`redrawGuard`、`renderSignatures`、`dragGesture`、`RoundBackground`、`dropZone`、`GameLauncher`），以及**场景骨架的锁定测试** `tests/startPageSkeleton.test.ts`——它把 `main.scene` 当静态 JSON 读，锁住开始页还剩哪些节点，同样不 import 引擎。拖拽跟手、动画、H5 适配这些只能手动验收，验收清单见 `docs/design/mvp-spec.md`。
 
 ## 目录结构
 
@@ -109,5 +109,11 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - `docs/design/mvp-spec.md`：设计基线（玩法、界面、验收清单）
 - `docs/adr/0001-asset-sourcing-and-licensing.md`：素材来源与授权策略
 - `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍（内容清单部分已被 0004 取代）
+- `docs/adr/0003-prepare-transition.md`：开始页／结算页与单局页之间横一段准备过场，单局计时在它之后才开始
 - `docs/adr/0004-start-page-cover-art.md`：开始页的标题与副标题烤进封面图，改文案 = 重出图
+- `docs/adr/0005-drop-zone-module.md`：落区判定收成一个不 import 引擎的模块，引擎侧从锚点接缝接入
+- `docs/adr/0006-bus-component-and-render-signatures.md`：订阅生命周期收进 `BusComponent`，渲染签名单独成模块
+- `docs/adr/0007-drag-gesture-state-machine.md`：点按与拖动的判定收进不 import 引擎的手势状态机，配料盘不再挂 `Button`
+- `docs/adr/0008-ingredient-ghost-and-icon-ownership.md`：「一份配料」的视觉与图标资源各只有一个所有者
+- `docs/adr/0009-misdrop-float-anchor-by-layout.md`：错放飘字改用版面契约定位，不再跨视图找节点
 - `docs/art/ui-prompts.md`：开始页界面出图需求（按钮底图两态 / 最高分奖杯；标题艺术字已作废）

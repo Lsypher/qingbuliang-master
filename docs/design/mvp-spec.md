@@ -75,5 +75,10 @@
 ## 相关文档
 
 - 术语表：`CONTEXT.md`
-- 决策记录：`docs/adr/0001-asset-sourcing-and-licensing.md`
-- 决策记录：`docs/adr/0004-start-page-cover-art.md`（开始页的标题与副标题烤进封面图，改开始页文案 = 重出图）
+- 决策记录（ADR）：**全部条目见 `README.md` 的「文档」一节**，不在这里另抄一份（抄了就会漏）；
+  与玩法 / 界面 / 验收直接相关的几条列在下面：
+  - `docs/adr/0001-asset-sourcing-and-licensing.md`：素材来源与授权策略
+  - `docs/adr/0002-start-page-skeleton-in-scene.md`：开始页骨架进场景、其余页维持运行时装配的取舍（内容清单部分已被 0004 取代）
+  - `docs/adr/0003-prepare-transition.md`：开始页／结算页与单局页之间横一段准备过场，单局计时在它之后才开始
+  - `docs/adr/0004-start-page-cover-art.md`：开始页的标题与副标题烤进封面图，改开始页文案 = 重出图
+  - `docs/adr/0007-drag-gesture-state-machine.md`：点按与拖动的判定收进手势状态机，配料盘不再挂 `Button`（影响验收第 4 条）
