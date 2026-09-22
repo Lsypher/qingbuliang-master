@@ -44,10 +44,12 @@ export interface DragPointPayload {
   y: number;
 }
 
+/** 松手载荷：哪份配料、松手点在世界坐标哪里（世界坐标留给错放反馈做起点） */
 export interface DragEndPayload extends DragPointPayload {
   ingredientId: string;
 }
 
+/** 悬停载荷：拖动中的落点算不算在落区内（落点判定见 game/dropZone.ts），碗据它亮/熄高亮框 */
 export interface DragOverBowlPayload {
   overBowl: boolean;
 }
@@ -61,5 +63,21 @@ export interface MisdropPayload {
 
 /** 界面页：开始页 / 单局页 / 结算页（用词以 CONTEXT.md 词表为准） */
 export type ScenePage = 'start' | 'game' | 'result';
+
+/**
+ * 事件 → 载荷的类型表：`BusComponent.listen` 靠它约束回调参数，于是"这条事件带什么"只有这一处说明，
+ * 调用点不必自己再标一遍泛型。**新增事件时这里要跟着加一行**，否则 `listen` 认不出它。
+ */
+export interface BusPayloadMap {
+  [BusEvent.Render]: RenderPayload;
+  [BusEvent.DropIngredient]: string;
+  [BusEvent.DragMoved]: DragPointPayload;
+  [BusEvent.DragEnded]: DragEndPayload;
+  /** 拖动被打断只做恢复，没有载荷 */
+  [BusEvent.DragCanceled]: void;
+  [BusEvent.DragOverBowl]: DragOverBowlPayload;
+  [BusEvent.Misdrop]: MisdropPayload;
+  [BusEvent.PageShown]: ScenePage;
+}
 
 export const bus = new EventTarget();

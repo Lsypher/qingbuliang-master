@@ -1,7 +1,8 @@
-import { _decorator, Component, Node, Tween, UIOpacity, UITransform, tween } from 'cc';
+import { _decorator, Node, Tween, UIOpacity, UITransform, tween } from 'cc';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload, ScenePage } from '../game/bus';
-import { BusEvent, bus } from '../game/bus';
+import { BusEvent } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { createOutlinedText, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -24,7 +25,7 @@ const GUIDE_FADE_OUT = 0.2;
  * 位置从配料盘节点算出来，版面挪动时跟着走，不需要在这里写死坐标。
  */
 @ccclass('GuideHint')
-export class GuideHint extends Component {
+export class GuideHint extends BusComponent {
   /** 本次运行里是否已经出过餐（出过一次就再也不提示） */
   private servedOnce = false;
   /** 当前是否摆在屏幕上：淡入淡出期间也要能说清"该显示还是该收起" */
@@ -33,16 +34,14 @@ export class GuideHint extends Component {
   private opacity: UIOpacity | null = null;
   private fadeTween: Tween<UIOpacity> | null = null;
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     this.box = this.buildBox();
-    bus.on(BusEvent.PageShown, this.onPageShown, this);
-    bus.on(BusEvent.Render, this.onRender, this);
+    // Render 由基类按"覆写了 onRendered"自动订阅；中文注释见 game/busComponent.ts
+    this.listen(BusEvent.PageShown, this.onPageShown);
   }
 
-  protected onDestroy(): void {
+  protected onViewDestroy(): void {
     this.fadeTween?.stop();
-    bus.off(BusEvent.PageShown, this.onPageShown, this);
-    bus.off(BusEvent.Render, this.onRender, this);
   }
 
   /** 进单局就浮出来（还没出过餐的话）；开始页与结算页不归它管，页面一藏自然看不见 */
@@ -51,7 +50,7 @@ export class GuideHint extends Component {
   }
 
   /** 首单出餐 = 教会了：收起提示，之后整局与重开的新局都不再现身 */
-  private onRender(payload: RenderPayload): void {
+  protected onRendered(payload: RenderPayload): void {
     if (this.servedOnce) return;
     if (!payload.events.some((event) => event.type === 'served')) return;
     this.servedOnce = true;

@@ -1,10 +1,11 @@
-import { _decorator, Component, Node, Tween, Vec3, tween } from 'cc';
+import { _decorator, Node, Tween, Vec3, tween } from 'cc';
 import { ROUND_DURATION_MS } from '../config/balance';
 import { COUNTDOWN_Y } from '../config/layout';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
-import { BusEvent, bus } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { SignatureGuard } from './redrawGuard';
+import { hudStatsSignature } from './renderSignatures';
 import type { OutlinedText } from './uiFactory';
 import { createOutlinedText, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
 
@@ -42,7 +43,7 @@ const PULSE_SCALE = 1.15;
  * 两行文字都带字形描边（来由与做法见 uiFactory.createOutlinedText）。
  */
 @ccclass('HudView')
-export class HudView extends Component {
+export class HudView extends BusComponent {
   /** 倒计时数字（告警时正文与描边一起转红，见 setCountdownWarning） */
   private countdownLabel: OutlinedText | null = null;
   /** 统计行：分数 / 完成订单 / 连击 */
@@ -58,16 +59,15 @@ export class HudView extends Component {
   private warningActive = false;
   private pulseTween: Tween<Node> | null = null;
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     this.buildCountdown();
     this.statsLine = createOutlinedText(this.node, 'HudLine', '', STATS_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     this.statsLine.node.setPosition(0, STATS_Y, 0);
-    bus.on(BusEvent.Render, this.onRender, this);
   }
 
-  protected onDestroy(): void {
+  /** 停脉冲：组件销毁前基类会调到这里（Render 的退订由基类做） */
+  protected onViewDestroy(): void {
     this.stopPulse();
-    bus.off(BusEvent.Render, this.onRender, this);
   }
 
   /** 倒计时区：上一行数字，下一行进度条 */
@@ -92,7 +92,7 @@ export class HudView extends Component {
     this.barFillNode.setPosition(-BAR_WIDTH / 2 + (BAR_WIDTH * ratio) / 2, 0, 0);
   }
 
-  private onRender(payload: RenderPayload): void {
+  protected onRendered(payload: RenderPayload): void {
     // 只在"亮 / 灭"翻转时动一次：脉冲进行中反复启动会把动画按住不动
     if (payload.state.warned !== this.warningActive) this.setCountdownWarning(payload.state.warned);
     this.renderCountdown(payload.state.remainingMs);
@@ -147,10 +147,10 @@ export class HudView extends Component {
     }
   }
 
-  /** 分数 / 完成订单 / 连击：值没变就不重排文本 */
+  /** 分数 / 完成订单 / 连击：值没变就不重排文本（签名怎么取见 ui/renderSignatures.ts） */
   private renderStats(state: RenderPayload['state']): void {
+    if (!this.statsRedraw.changed(hudStatsSignature(state))) return;
     const { score, servedOrders, comboCount } = state;
-    if (!this.statsRedraw.changed(`${score}|${servedOrders}|${comboCount}`)) return;
 
     this.statsLine?.setText([
       `${STRINGS.scoreLabel} ${score}`,

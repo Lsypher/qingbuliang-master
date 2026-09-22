@@ -1,8 +1,8 @@
-import { _decorator, Component, Node, Vec3, tween } from 'cc';
+import { _decorator, Node, Vec3, tween } from 'cc';
 import { COMBO_SHOUT_AT } from '../config/balance';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
-import { BusEvent, bus } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { createOutlinedText, floatAway, toLocalPoint, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -36,20 +36,15 @@ const SHOUT_FADE = 0.3;
  * 节点用完即焚：每次出餐新建，动画结束自己销毁，组件本身不持有任何状态。
  */
 @ccclass('ServeFeedback')
-export class ServeFeedback extends Component {
+export class ServeFeedback extends BusComponent {
   /** 碗区节点：反馈都锚在它中心，版面怎么挪都不用改这里的坐标 */
   private bowlNode: Node | null = null;
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     this.bowlNode = this.node.getChildByName('BowlArea');
-    bus.on(BusEvent.Render, this.onRender, this);
   }
 
-  protected onDestroy(): void {
-    bus.off(BusEvent.Render, this.onRender, this);
-  }
-
-  private onRender(payload: RenderPayload): void {
+  protected onRendered(payload: RenderPayload): void {
     // 每帧广播里的 events 都是"本次新产生的"，出餐事件一条也不会漏（同帧两次出餐也各给一次反馈）
     for (const event of payload.events) {
       if (event.type !== 'served') continue;

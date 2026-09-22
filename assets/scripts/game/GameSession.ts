@@ -1,8 +1,9 @@
-import { _decorator, Component, Node, UITransform, Vec3 } from 'cc';
+import { _decorator, Node, UITransform, Vec3 } from 'cc';
 import type { Session, SessionEvent } from '../core/session';
 import { createSession } from '../core/session';
 import type { DragEndPayload, DragPointPayload } from './bus';
 import { BusEvent, bus } from './bus';
+import { BusComponent } from './busComponent';
 import type { BowlDropZone, DropAnchor, DropZonePoint } from './dropZone';
 import { createBowlDropZone } from './dropZone';
 
@@ -17,7 +18,7 @@ const { ccclass } = _decorator;
  * 配料盘只认识手势不认识碗，碗只认识高亮事件不认识手指。
  */
 @ccclass('GameSession')
-export class GameSession extends Component {
+export class GameSession extends BusComponent {
   private session: Session | null = null;
   /**
    * 本局落区：每局新建（见 startRound），于是锚点解析与"只告警一次"的闩锁都跟着每局重来，
@@ -35,18 +36,12 @@ export class GameSession extends Component {
     this.publish([]);
   }
 
-  protected onLoad(): void {
-    bus.on(BusEvent.DropIngredient, this.onIngredientClicked, this);
-    bus.on(BusEvent.DragMoved, this.onDragMoved, this);
-    bus.on(BusEvent.DragEnded, this.onDragEnded, this);
-    bus.on(BusEvent.DragCanceled, this.onDragCanceled, this);
-  }
-
-  protected onDestroy(): void {
-    bus.off(BusEvent.DropIngredient, this.onIngredientClicked, this);
-    bus.off(BusEvent.DragMoved, this.onDragMoved, this);
-    bus.off(BusEvent.DragEnded, this.onDragEnded, this);
-    bus.off(BusEvent.DragCanceled, this.onDragCanceled, this);
+  protected onViewLoad(): void {
+    // 这四条是"视图 → 适配层"的输入事件。Render 不在这里：本组件不渲染，基类不会替它订阅
+    this.listen(BusEvent.DropIngredient, this.onIngredientClicked);
+    this.listen(BusEvent.DragMoved, this.onDragMoved);
+    this.listen(BusEvent.DragEnded, this.onDragEnded);
+    this.listen(BusEvent.DragCanceled, this.onDragCanceled);
   }
 
   protected update(deltaTime: number): void {

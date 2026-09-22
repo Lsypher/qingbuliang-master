@@ -1,7 +1,8 @@
-import { _decorator, Button, Component, Node } from 'cc';
+import { _decorator, Button, Node } from 'cc';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import type { RenderPayload, ScenePage } from '../game/bus';
 import { BusEvent, bus } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { GameLauncher } from '../game/GameLauncher';
 import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
@@ -24,14 +25,14 @@ const PREPARE_TRANSITION_NODE = 'PrepareTransition';
  * 这是表现层的组合根——只做装配与切换，不承载任何规则判断。
  * 规则一律来自 core 层的事件：能自己订阅的页面组件都自己订阅，
  * 唯一的例外是"点亮结算页的那条 finished 事件"——那时结算页才刚被激活，
- * 订阅不到它，只能由这里转交（见 onRender）。
+ * 订阅不到它，只能由这里转交（见 onRendered）。
  *
  * 它现在除了切页，还负责一段过场编排：进单局页不再是一步到位的切换，
  * 而是"亮起准备过场 → 过场放行那一帧再切页并开一局新的"。过场只是盖在当前页面之上的一层
  * （它不是第 4 个界面状态，见 ui/PrepareTransition.ts），所以"三页互斥"这条不变式与切页逻辑一字未动。
  */
 @ccclass('GameRoot')
-export class GameRoot extends Component {
+export class GameRoot extends BusComponent {
   @property(Node) startPage: Node | null = null;
   @property(Node) gamePage: Node | null = null;
   @property(Node) resultPage: Node | null = null;
@@ -64,10 +65,9 @@ export class GameRoot extends Component {
     defer: (fn) => this.scheduleOnce(fn, 0),
   });
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     this.bindClick(this.startButton, this.showGame);
     this.bindClick(this.restartButton, this.showGame);
-    bus.on(BusEvent.Render, this.onRender, this);
     this.assembleBackground();
     this.assembleTray();
     this.assembleGameFeedback();
@@ -142,10 +142,6 @@ export class GameRoot extends Component {
     node.active = false;
   }
 
-  protected onDestroy(): void {
-    bus.off(BusEvent.Render, this.onRender, this);
-  }
-
   /**
    * 单局结束由核心的 finished 事件驱动：时间一到自动进结算页，玩家不必再点一次。
    * 这里只认事件、不自己看时间——"归零"的判定权始终在核心。
@@ -153,7 +149,7 @@ export class GameRoot extends Component {
    * 结算页是在这次分发里才被激活的，它自己的组件那时才开始 onLoad，
    * 所以订阅不到"让它显示"的这条事件：必须先切页、再把事件交给它，顺序不能反。
    */
-  private onRender(payload: RenderPayload): void {
+  protected onRendered(payload: RenderPayload): void {
     const finished = payload.events.find((event) => event.type === 'finished');
     if (!finished || finished.type !== 'finished') return;
     this.showResult();

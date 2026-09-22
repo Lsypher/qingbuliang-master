@@ -1,9 +1,10 @@
-import { _decorator, Component, Graphics, Label, Node, UIOpacity, Vec3, tween } from 'cc';
+import { _decorator, Graphics, Label, Node, UIOpacity, Vec3, tween } from 'cc';
 import { COUNTDOWN_Y, SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import { ingredientName } from '../config/ingredients';
 import { STRINGS } from '../config/strings';
 import type { MisdropPayload } from '../game/bus';
-import { BusEvent, bus } from '../game/bus';
+import { BusEvent } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { createLabel, createOutlinedText, createUiNode, floatAway, paintPanel, toLocalPoint, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -37,17 +38,13 @@ const COUNTDOWN_FLOAT_FONT = 48;
  * 重复放入走的是核心的 `rejected` 事件，不经过这里，所以天然"无任何视觉变化"。
  */
 @ccclass('MisdropFeedback')
-export class MisdropFeedback extends Component {
-  /** 配料盘节点：弹回动画的终点就是它；onLoad 时缓存一次 */
+export class MisdropFeedback extends BusComponent {
+  /** 配料盘节点：弹回动画的终点就是它；onViewLoad 时缓存一次 */
   private trayNode: Node | null = null;
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     this.trayNode = this.node.getChildByName('TrayArea');
-    bus.on(BusEvent.Misdrop, this.onMisdrop, this);
-  }
-
-  protected onDestroy(): void {
-    bus.off(BusEvent.Misdrop, this.onMisdrop, this);
+    this.listen(BusEvent.Misdrop, this.onMisdrop);
   }
 
   private onMisdrop(payload: MisdropPayload): void {

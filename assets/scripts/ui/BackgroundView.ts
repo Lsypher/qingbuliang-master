@@ -1,8 +1,9 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, assetManager } from 'cc';
+import { _decorator, Node, Sprite, SpriteFrame, assetManager } from 'cc';
 import { BACKGROUND_DIR, START_BACKGROUND } from '../config/backgrounds';
 import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../config/layout';
 import type { ScenePage } from '../game/bus';
-import { BusEvent, bus } from '../game/bus';
+import { BusEvent } from '../game/bus';
+import { BusComponent } from '../game/busComponent';
 import { RoundBackground } from './RoundBackground';
 import type { PreloadTask } from './uiFactory';
 import { createUiNode, loadSpriteFrame, paintPanel, UI_COLOR } from './uiFactory';
@@ -27,13 +28,13 @@ const { ccclass } = _decorator;
  * 交接换图时上一张随 `applyFrame` 放掉，多出来的一张不会活过这一帧。
  */
 @ccclass('BackgroundView')
-export class BackgroundView extends Component {
+export class BackgroundView extends BusComponent {
   private imageNode: Node | null = null;
   private dimNode: Node | null = null;
   /** 本局背景的抽定与预载：加载入口注入真实实现，池子与随机源都在它内部 */
   private readonly round = new RoundBackground(loadSpriteFrame);
 
-  protected onLoad(): void {
+  protected onViewLoad(): void {
     const image = createUiNode(this.node, 'BackgroundImage', SCREEN_WIDTH, SCREEN_HEIGHT);
     const sprite = image.addComponent(Sprite);
     // 用节点尺寸而不是图片自身尺寸：这样图片被拉满全屏，而不是把节点改成图片大小
@@ -44,14 +45,10 @@ export class BackgroundView extends Component {
     paintPanel(dim, UI_COLOR.backgroundDim);
     this.dimNode = dim;
 
-    bus.on(BusEvent.PageShown, this.onPageShown, this);
+    this.listen(BusEvent.PageShown, this.onPageShown);
 
     // 开始页用封面图垫着；等玩家开局才随机换
     this.showStartBackground();
-  }
-
-  protected onDestroy(): void {
-    bus.off(BusEvent.PageShown, this.onPageShown, this);
   }
 
   /**
