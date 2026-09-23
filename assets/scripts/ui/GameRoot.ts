@@ -8,6 +8,7 @@ import { GameSession } from '../game/GameSession';
 import { BackgroundView } from './BackgroundView';
 import { preloadIngredientIcons } from './ingredientIcon';
 import { MisdropFeedback } from './MisdropFeedback';
+import { preloadMisdropPopup } from './misdropPopup';
 import { PrepareTransition } from './PrepareTransition';
 import { ResultView } from './ResultView';
 import { ServeFeedback } from './ServeFeedback';
@@ -86,7 +87,7 @@ export class GameRoot extends BusComponent {
   }
 
   /**
-   * 兜底装配单局反馈层：错放反馈（弹回 / 红闪 / "-3 秒"）与出餐反馈（得分飘字 / "够劲！"）。
+   * 兜底装配单局反馈层：错放反馈（弹回 / 红闪 / 顶部"-3 秒" / 中央弹窗）与出餐反馈（得分飘字 / "够劲！"）。
    *
    * 与背景层同理，是兜底补挂、不是唯一装配方式（组件同样可以直接挂进场景）。
    * 都挂到单局页上——反馈节点是单局页的子节点，单局页隐藏时一并隐藏，不会漏到结算页；
@@ -153,11 +154,13 @@ export class GameRoot extends BusComponent {
    */
   showGame(): void {
     // 预载任务由"拥有资源那层"提供：背景层交出本局背景，配料图标模块交出 12 格图标
-    // （图标是配料盘、订单卡、碗与幽灵共用的资源，所以问那个模块要，不经过任何一屏）。
-    // 过场按"已决几项 / 总项数"放行，两个来源各自把加载路径留在本层，组合根只做编排。
+    // （图标是配料盘、订单卡、碗与幽灵共用的资源，所以问那个模块要，不经过任何一屏），
+    // 错放弹窗模块交出那张"-3 秒"图——它是"触发即显示"的反馈，现拉图会晚一两帧才冒出来。
+    // 过场按"已决几项 / 总项数"放行，三个来源各自把加载路径留在本层，组合根只做编排。
     const preloads: PreloadTask[] = [];
     if (this.background) preloads.push(this.background.rollRoundBackground());
     preloads.push(...preloadIngredientIcons());
+    preloads.push(preloadMisdropPopup());
     this.launcher.launch(() => this.enterGame(), preloads);
   }
 

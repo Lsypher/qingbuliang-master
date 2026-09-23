@@ -179,6 +179,56 @@ export function loadSpriteFrame(path: string, onLoad: (frame: SpriteFrame | null
  */
 export type PreloadTask = (done: () => void) => void;
 
+/**
+ * 一张按路径缓存的界面图。
+ *
+ * 「按路径取帧 + 缓存 + 标记已决 + 交出预载任务」这套形状在仓库里有两个用户（`ingredientIcon`
+ * 的 12 格图标、`misdropPopup` 的弹窗图），所以收在这里一份：各模块只给出路径，
+ * 不再各写一遍缓存与已决标记——两份写法迟早会漂移成两种行为。
+ *
+ * 三种状态由 `resolved()` 与 `frame()` 组合表示：
+ * - 未决：`resolved()` 为 false（还没读过盘）
+ * - 已决且成功：`resolved()` 为 true，`frame()` 非空
+ * - 已决且失败：`resolved()` 为 true，`frame()` 为 null（缺图，由调用方决定怎么兜底）
+ */
+export interface SpriteFrameSlot {
+  /** 交出预载任务：加载**有结果**（成功或失败）时回调一次 `done`，过场靠它数"已决几项" */
+  preload(): PreloadTask;
+  /** 帧；未决或加载失败时都是 null，要区分就配 `resolved()` 看 */
+  frame(): SpriteFrame | null;
+  /** 是否已经问过盘（成功与失败都算），用来识别"加载过但没拿到" */
+  resolved(): boolean;
+  /** 异步取帧并写进缓存；给"还没预载到"的兜底路径用，回调里拿结果 */
+  load(onLoad: (frame: SpriteFrame | null) => void): void;
+}
+
+/**
+ * 建一个按路径缓存的帧槽。路径拼法仍由 `loadSpriteFrame` 收口，这里只管缓存与已决标记。
+ * 加载失败时打一条带路径的告警（各模块的兜底策略不同，所以只告警、不在这里替调用方兜底）。
+ */
+export function createSpriteFrameSlot(path: string): SpriteFrameSlot {
+  let frame: SpriteFrame | null = null;
+  let resolved = false;
+
+  const load = (onLoad: (frame: SpriteFrame | null) => void): void => {
+    loadSpriteFrame(path, (loaded, error) => {
+      // 无论成败都写进槽：成功存帧、失败存 null 以标记"已决"，
+      // 下游就能同步识别"加载过但没拿到"，不重复读盘、也不阻塞进局
+      frame = loaded;
+      resolved = true;
+      if (!loaded) console.warn(`[uiFactory] 界面图加载失败：${path}`, error);
+      onLoad(loaded);
+    });
+  };
+
+  return {
+    preload: () => (done) => load(() => done()),
+    frame: () => (resolved ? frame : null),
+    resolved: () => resolved,
+    load,
+  };
+}
+
 /** 在节点上画一块纯色面板，可带描边；重复调用会重画（换色、改尺寸都用它） */
 export function paintPanel(node: Node, fill: Color, border?: Color): Graphics {
   return drawPanel(node, fill, 0, border);

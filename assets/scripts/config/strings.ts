@@ -45,7 +45,7 @@ export const STRINGS = {
   scoreFloatPrefix: '+',
   /** 订单卡上"已在碗里"的打勾标记 */
   orderCheckMark: '✓',
-  /** 错放时在计时处飘出；"-3" 与 balance 的 MISDROP_PENALTY_MS 对应，改扣时必须同步改这里 */
+  /** 错放时在计时处飘出。这个"-3"与扣时值、与弹窗位图绑在一起，同步点见 balance.MISDROP_PENALTY_MS */
   misdropText: '-3 秒',
 
   result: {

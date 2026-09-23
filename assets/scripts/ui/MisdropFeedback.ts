@@ -5,6 +5,7 @@ import type { MisdropPayload } from '../game/bus';
 import { BusEvent } from '../game/bus';
 import { BusComponent } from '../game/busComponent';
 import { createIngredientGhost } from './ingredientGhost';
+import { showMisdropPopup } from './misdropPopup';
 import { createOutlinedText, createUiNode, floatAway, toLocalPoint, UI_COLOR } from './uiFactory';
 
 const { ccclass } = _decorator;
@@ -25,13 +26,17 @@ const COUNTDOWN_FLOAT_OFFSET_X = 220;
 const COUNTDOWN_FLOAT_FONT = 48;
 
 /**
- * 错放反馈：核心判定为错放后，这里负责三件事——配料弹回配料盘、屏幕边缘红闪、飘出 "-3 秒"。
+ * 错放反馈：核心判定为错放后，这里负责四件事——配料弹回配料盘、屏幕边缘红闪、
+ * 顶部飘出 "-3 秒"、屏幕中央弹出 "-3 秒"图片弹窗（见 ui/misdropPopup.ts）。
  *
- * 这三种反馈都只做表现、不碰任何规则：吃的是适配层广播的 `Misdrop`（带落点世界坐标），
+ * 这些反馈都只做表现、不碰任何规则：吃的是适配层广播的 `Misdrop`（带落点世界坐标），
  * 落点世界坐标由 GameSession 给出（拖动取松手点、点按取碗中心）。用完即焚——每次错放新建节点，
  * 动画结束后自己销毁，组件本身不持有任何状态。
  *
- * "-3 秒" 锚在顶部"倒计时"标签旁边（而不是落点），让玩家立刻把"被扣时"和倒计时对应起来；
+ * "-3 秒" 有两处、内容相同、同时出现，这是有意的分工：飘字锚在顶部"倒计时"标签旁边（而不是落点），
+ * 让玩家立刻把"被扣时"和倒计时对应起来；中央那张图管"一眼看见"（错放专用的美术件，抖动 + 残影）。
+ * 两处都只挂显示组件、不拦触摸，所以不会挡住碗与配料盘的后续操作。
+ *
  * 重复放入走的是核心的 `rejected` 事件，不经过这里，所以天然"无任何视觉变化"。
  */
 @ccclass('MisdropFeedback')
@@ -48,6 +53,8 @@ export class MisdropFeedback extends BusComponent {
     this.flashEdges();
     this.floatPenalty();
     this.bounceBack(payload);
+    // 弹窗建在最后：节点追加在末尾 = 画在最上层，才不会被同帧新建的弹回幽灵压在下面
+    showMisdropPopup(this.node);
   }
 
   /** 屏幕边缘红闪：四条红边围成框，中间留空，不遮中央倒计时与订单卡 */

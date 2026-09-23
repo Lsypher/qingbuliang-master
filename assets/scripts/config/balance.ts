@@ -6,7 +6,16 @@
 /** 单局总时长（毫秒） */
 export const ROUND_DURATION_MS = 60_000;
 
-/** 错放扣时（毫秒） */
+/**
+ * 错放扣时（毫秒）。
+ *
+ * **这个"-3"同时烤死在另外两处，改它必须连它们一起改**：
+ * 1. `STRINGS.misdropText`——顶部飘出的那段文案；
+ * 2. `assets/resources/art/ui/misdrop-penalty.png`——中央弹窗的位图，"-3"是画在图上的，要重出图。
+ *
+ * 三者之间**没有任何代码绑定**，改一处不会带动另外两处。本注释是这条契约**唯一的权威说明**，
+ * 其余三处（strings、misdropPopup、CREDITS）只放一句指针，不重复解释——重复的地方会各自漂移。
+ */
 export const MISDROP_PENALTY_MS = 3_000;
 
 /** 出餐过渡时长（毫秒）：碗清空、顾客换人的动画时间，期间计时暂停 */
