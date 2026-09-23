@@ -82,8 +82,8 @@ const GHOST_ALPHA: readonly number[] = [96, 52];
 /** 弹入：从这么小弹到位（backOut 会轻微过冲），以及弹入时长（秒）——短到看不出延迟，又不至于硬生生蹦出来 */
 const POP_START_SCALE = 0.7;
 const POP_IN = 0.12;
-/** 抖完之后的停留（秒）：留一口气让人看清"-3 秒"，随后才开始淡出 */
-const HOLD = 0.5;
+/** 弹入结束后到淡出开始前的一段停顿（秒）；已很短，基本靠弹入+淡出让人看清"-3 秒"，不再单独留长时间 */
+const HOLD = 0.12;
 /** 淡出时长（秒） */
 const FADE_OUT = 0.26;
 
@@ -154,7 +154,7 @@ function buildPopup(parent: Node, frame: SpriteFrame): void {
   tween(popup).to(POP_IN, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }).start();
 
   // 淡入 → 停留 → 淡出 串成一条链，销毁只挂在这一条上：两条补间都调 destroy 会重复销毁报错
-  // （同 uiFactory.floatAway 的约定）。停留从弹入结束起算，抖动（约 0.27 秒）在停留期间早已跑完。
+  // （同 uiFactory.floatAway 的约定）。停留从弹入结束起算；抖动约 0.27 秒比停留长，会跨进淡出期——这是缩短 HOLD 后的已知表现，不是 bug。
   tween(opacity)
     .to(POP_IN, { opacity: 255 })
     .delay(HOLD)
