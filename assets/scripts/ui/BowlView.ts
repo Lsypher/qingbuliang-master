@@ -18,9 +18,7 @@ const BOWL_ICON_GAP = 12;
  * 别再从落区宽减一个数算出来——两者语义无关，捆在一起会一起漂。
  */
 const BOWL_ICON_ROW_WIDTH = 560;
-/** 碗区两行文字的纵向位置与字号（设计像素，以碗区中心为原点）：标题在上，空碗提示居中；与图标行（`BowlIcons`）不重叠就是按这两组值定的 */
-const BOWL_TITLE_Y = 180;
-const BOWL_TITLE_FONT = 30;
+/** 空碗提示的纵向位置与字号（设计像素，以碗区中心为原点）；与图标行（`BowlIcons`）不重叠就是按这组值定的 */
 const BOWL_EMPTY_Y = 10;
 const BOWL_EMPTY_FONT = 34;
 
@@ -31,7 +29,7 @@ const { ccclass } = _decorator;
  * 只有核心接受了的配料才会出现在这里，所以这里不需要任何判断。
  * 拖动悬停高亮也在这里画：它只听适配层的"落点在不在碗上"，自己不做几何判定。
  *
- * 标题与空碗提示都带字形描边（来由与做法见 uiFactory.createOutlinedText）。
+ * 空碗提示带字形描边（来由与做法见 uiFactory.createOutlinedText）。
  */
 @ccclass('BowlView')
 export class BowlView extends BusComponent {
@@ -48,8 +46,6 @@ export class BowlView extends BusComponent {
     paintPanel(this.highlightNode, UI_COLOR.bowlHighlightFill, UI_COLOR.bowlHighlightBorder);
     this.highlightNode.active = false;
 
-    const title = createOutlinedText(this.node, 'BowlTitle', STRINGS.bowlTitle, BOWL_TITLE_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
-    title.node.setPosition(0, BOWL_TITLE_Y, 0);
     // 图标行与配料盘、订单卡共用 ingredientIcon 那一套图标
     this.emptyHint = createOutlinedText(this.node, 'BowlEmptyHint', '', BOWL_EMPTY_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     this.emptyHint.node.setPosition(0, BOWL_EMPTY_Y, 0);

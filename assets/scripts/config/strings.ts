@@ -38,7 +38,6 @@ export const STRINGS = {
   orderTitle: '顾客要这一碗',
   placedLabel: '已放',
   /** 碗区域文案 */
-  bowlTitle: '碗中',
   bowlEmpty: '空碗',
   /** 连击达到门槛（见 balance 的 COMBO_SHOUT_AT）时冒出 */
   comboShout: '够劲！',
