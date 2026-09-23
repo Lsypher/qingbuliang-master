@@ -82,7 +82,11 @@ export const UI_COLOR = {
   backgroundDim: new Color(0, 0, 0, 0),
   /** 准备过场的整屏底：与面板同色系，但**完全不透明**——过场期间底下的按钮必须"看不见、也点不到" */
   transitionBackdrop: new Color(24, 32, 46, 255),
-  /** 开始页开摊按钮的占位底图：木色圆角面板，取色自交付底图的木纹中间调；真底图到位后由 StartView 收起 */
+  /**
+   * 开始页开摊按钮的占位底图：木色圆角面板，取色自早期木牌底图的木纹中间调
+   * （现底图已换成自带文字的胶囊按钮，占位底仍沿用这支色——它只在底图缺失时露一次脸）。
+   * 真底图到位后由 StartView 收起。
+   */
   startButtonPlaceholder: new Color(183, 100, 40, 255),
   /** 错放红闪：只红在屏幕边缘（中间留空），不挡中央信息。实际亮度由 UIOpacity 控制淡出 */
   misdropFlash: new Color(255, 70, 70, 220),

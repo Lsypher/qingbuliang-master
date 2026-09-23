@@ -2,11 +2,13 @@
 /**
  * 开始页骨架的锁定测试。
  *
- * 直接读场景 JSON，断言这次改动的两条不变量：
+ * 直接读场景 JSON，断言这次改动的三条不变量：
  *   1. 开始页上只剩两个部分——最高分行与开摊按钮。标题、副标题与其底框、玩法说明这五类节点
  *      已经烤进整屏封面图，不该再作为节点回来（回来一个就会在封面图上多叠一层字或一块黑框）。
- *   2. 留下的两部分结构仍然完整（最高分 = 奖杯 + 文字，按钮 = 占位底 + 文字）——
+ *   2. 留下的两部分结构仍然完整（最高分 = 奖杯 + 文字，按钮 = 占位底 + 文字节点）——
  *      `StartView` 是按这些节点名取子节点的，少一个只会静默地不刷新那一块，不会报错。
+ *   3. 按钮上的字烤在底图里（`start-button.png` 自带"开始游戏"），所以那个文字节点必须是**停用**的——
+ *      启用回来就会在图上的字上面再叠一层"开摊"（见 docs/adr/0011-start-button-art-carries-its-own-text.md）。
  *
  * 不依赖引擎（只解析静态 JSON，场景以 vite 的 ?raw 形式读成字符串），改场景接线就会被这条用例抓住。
  * 测试名用中文写成一句需求，读起来就是验收标准。
@@ -24,6 +26,8 @@ interface SceneComponent {
 interface SceneNode {
   __type__: 'cc.Node';
   _name: string;
+  /** 节点是否启用（未启用的节点及其子树不参与渲染） */
+  _active: boolean;
   /** 组件引用，`__id__` 指向场景对象数组里的下标 */
   _components: { __id__: number }[];
   /** 子节点引用，同上；没有子节点时是空数组 */
@@ -93,10 +97,17 @@ describe('留下的两部分结构仍然完整', () => {
     expect(hasComponent(findNode(nodes, 'Icon'), byIndex, 'cc.Sprite'), '奖杯节点应挂 Sprite').toBe(true);
   });
 
-  it('开摊按钮是"占位底 + 文字"，且按钮挂着 Button', () => {
+  it('开摊按钮是"占位底 + 文字节点"，且按钮挂着 Button', () => {
     const button = findNode(nodes, 'StartButton');
-    // 这里的顺序是有意义的：同层先画的在下层，占位底排在文字之后会盖住"开摊"两个字
+    // 顺序仍有意义：同层先画的在下层，占位底必须排在文字节点之后画的那一层之下
     expect(childrenOf(button, byIndex).map((child) => child._name)).toEqual(['Placeholder', 'Label']);
     expect(hasComponent(button, byIndex, 'cc.Button'), '按钮节点应挂 Button').toBe(true);
+  });
+
+  it('按钮上的文字节点是停用的（字已经烤进底图，启用就会叠字）', () => {
+    const button = findNode(nodes, 'StartButton');
+    const label = childrenOf(button, byIndex).find((child) => child._name === 'Label');
+    expect(label, '按钮下应有名为 Label 的子节点').toBeDefined();
+    expect(label?._active).toBe(false);
   });
 });

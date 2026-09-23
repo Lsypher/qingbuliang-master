@@ -82,8 +82,8 @@ assets/
                                （封面图上画着标题与副标题，改文案 = 重出图，见 docs/adr/0004；
                                  全部按文件名运行时加载，换图只换文件）
     ingredients/               12 张配料图标（文件名即配料 id）
-    ui/                        开始页界面图 3 个文件：按钮底图（正常 / 按下）、最高分奖杯
-                               （同样按文件名加载，同名覆盖即换图）
+    ui/                        开始页界面图 3 个文件：按钮底图（正常 / 按下同一张，图上自带
+                               "开始游戏"）、最高分奖杯（同样按文件名加载，同名覆盖即换图）
 docs/                          ADR、设计基线、背景与界面出图需求、agent 约定
 tests/                         不依赖引擎的纯逻辑单元测试（core/ 规则与引擎无关模块）
 ```
@@ -98,7 +98,7 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - **配料图标**：项目方自绘透明底 PNG（文件名即 id，同名覆盖即换图），12 格各有独立图、辅以中文标签识别。
 - **背景图**：4 张单局背景（`1`–`4`）由项目方交付，压缩档位记在 `CREDITS.md`。
 - **开始页封面图**：`backgrounds/start-page.png`，标题与副标题画在图里——改开始页文案等于重出这张图（见 `docs/adr/0004-start-page-cover-art.md`）。
-- **开始页界面图**：3 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。
+- **开始页界面图**：3 个文件按 `docs/art/ui-prompts.md` 的出图需求产出、由项目方交付；与规格的偏差记在 `CREDITS.md`。按钮底图现用的是**自带"开始游戏"四个字**的那张，因此按钮不上九宫格、场景里的文字节点停用（见 `docs/adr/0011-start-button-art-carries-its-own-text.md`）。
 - **音频**：无（本版本不做音频）。
 
 素材均为项目方自备原创，非第三方素材，无需对外署名，游戏内不设致谢文案。
@@ -116,4 +116,5 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - `docs/adr/0007-drag-gesture-state-machine.md`：点按与拖动的判定收进不 import 引擎的手势状态机，配料盘不再挂 `Button`
 - `docs/adr/0008-ingredient-ghost-and-icon-ownership.md`：「一份配料」的视觉与图标资源各只有一个所有者
 - `docs/adr/0009-misdrop-float-anchor-by-layout.md`：错放飘字改用版面契约定位，不再跨视图找节点
-- `docs/art/ui-prompts.md`：开始页界面出图需求（按钮底图两态 / 最高分奖杯；标题艺术字已作废）
+- `docs/adr/0011-start-button-art-carries-its-own-text.md`：开摊按钮的字烤进底图（按钮图因此不走九宫格、尺寸取原图 240×86、不放大）
+- `docs/art/ui-prompts.md`：开始页界面出图需求（最高分奖杯；标题艺术字与旧木牌按钮底图两段均已作废，只作历史记录）

@@ -24,23 +24,27 @@ const BEST_SCORE_TROPHY_PATH = 'art/ui/best-score-trophy';
  * 开摊按钮底图在资源目录里的路径（同上，按文件名取图）：正常 / 按下两张，
  * 美术把 `start-button.png` / `start-button-pressed.png` 同名覆盖进这个目录即生效——
  * 不改代码、也不回编辑器接线。**不取悬停态**：手机端没有悬停，出一张只在桌面鼠标上生效的图不值得。
+ *
+ * 眼下两张是**同一个文件**（素材只给了一张，按下反馈由"缩到 0.95"承担），图里自带"开始游戏"四个字。
+ * 按钮为什么不走九宫格、为什么必须整图拉伸、尺寸为什么取原图的 240×86（设计像素 1:1，不放大）——
+ * 这条契约只在 ADR-0011 里说一次（docs/adr/0011-start-button-art-carries-its-own-text.md），此处不复述。
  */
 const START_BUTTON_ART_PATH = 'art/ui/start-button';
 const START_BUTTON_PRESSED_ART_PATH = 'art/ui/start-button-pressed';
 
 /**
- * 场景里按钮的结构：按钮节点（Sprite 底图 + Button）→ 占位底图 + 文字。
- * 占位底图排在文字之前，所以压不到"开摊"两个字。
+ * 场景里按钮的结构：按钮节点（Sprite 底图 + Button）→ 占位底图 + 文字节点。
+ * 文字节点已停用（字烤在底图里），占位底图仍排在它之前——顺序不再是"谁盖谁"的问题，
+ * 只为不搅动既有节点序（见 tests/startPageSkeleton.test.ts）。
  */
 const START_BUTTON_NODE = 'StartButton';
 const START_BUTTON_PLACEHOLDER_NODE = 'Placeholder';
-const START_BUTTON_LABEL_NODE = 'Label';
 
 /**
- * 占位底图的圆角半径（设计像素）：与交付的木牌底图同一档圆角量级，
- * 缺图时占位底看上去仍是"同一块牌子"，底图到位后换上不会突然换个形状。
+ * 占位底图的圆角半径（设计像素）：按钮按原图 1:1 显示，所以直接取原图量到的圆角半径 28px（240×86），
+ * 缺图时占位底与真底图形状一致，换上也看不出跳变。上限是按钮半高（43），不能再大。
  */
-const START_BUTTON_PLACEHOLDER_RADIUS = 16;
+const START_BUTTON_PLACEHOLDER_RADIUS = 28;
 
 /**
  * 按下时按钮缩到的比例：手机端没有悬停，玩家对"按下有没有反应"的感知全在这一瞬间的画面变化上。
@@ -53,6 +57,9 @@ const START_BUTTON_PRESS_SCALE = 0.95;
  *
  * 页面上的固定文字（标题、副标题、玩法一句话）全部在图里，所以这里没有任何"贴字"的代码。
  * 代价是**改开始页的文案等同于重出封面图**，文案表里不再有它们的位置（见 docs/adr/0004-start-page-cover-art.md）。
+ *
+ * 这一屏上唯一由代码写字的只剩最高分行；**按钮上的字也在底图里**（那个文字节点是停用的，
+ * 见 docs/adr/0011-start-button-art-carries-its-own-text.md）。
  *
  * 最高分每次页面显示时重读本地存储：上一局刚破的纪录，回到开始页立刻看得见。
  */
@@ -156,8 +163,8 @@ export class StartView extends Component {
    * 开摊按钮的一次性装配：画好占位底图、把"按下缩小"接上。
    *
    * 按下缩小**不能交给 Button 的缩放过渡**：一个按钮只有一种过渡方式，而换图已经用了 Sprite 过渡
-   * （正常 / 按下两态），所以这条自己接。缩的是按钮节点本身，而"开摊"两个字是它的子节点，
-   * 于是文字跟着底图一起动，不会出现"文字与底图分离"。
+   * （正常 / 按下两态），所以这条自己接。缩的是按钮节点本身，底图与底下的子节点跟着一起动，
+   * 不会出现"画面与底图分离"。
    */
   private setupStartButton(): void {
     const buttonNode = this.node.getChildByName(START_BUTTON_NODE);
@@ -177,7 +184,7 @@ export class StartView extends Component {
   }
 
   /**
-   * 占位底图：程序化画一块木色圆角面板（颜色取自交付底图的木纹中间调）。
+   * 占位底图：程序化画一块木色圆角面板（取色自早期木牌底图的木纹中间调，见 uiFactory 的色表）。
    *
    * 底图还没交付 / 加载失败时它顶着，版面与按下反馈当天就能验收，不必等美术；
    * 它是按钮的子节点，所以按下时跟按钮一起缩。取到真底图后由 setStartButtonPlaceholderVisible 收起——
@@ -194,14 +201,16 @@ export class StartView extends Component {
   }
 
   /**
-   * 开摊按钮：文字仍从文案表取；底图按文件名取（正常 / 按下两态），换图由场景里设好的
-   * Sprite 过渡完成——按下换图、松手换回，**不提供悬停态图**（手机端没有悬停，悬停复用正常态）。
+   * 开摊按钮：底图按文件名取（正常 / 按下两态），换图由场景里设好的 Sprite 过渡完成——
+   * 按下换图、松手换回，**不提供悬停态图**（手机端没有悬停，悬停复用正常态）。
+   *
+   * 按钮上的字**不在这里刷**：它烤在底图里（场景里那个 `Label` 节点已停用），
+   * 所以 `STRINGS.startButton` 不在这条路径上——改按钮文案等同于重出底图（见 ADR-0011）。
    */
   private showStartButton(): void {
     const buttonNode = this.node.getChildByName(START_BUTTON_NODE);
     const button = buttonNode?.getComponent(Button);
     if (!buttonNode || !button) return;
-    setLabelText(buttonNode, START_BUTTON_LABEL_NODE, STRINGS.startButton);
     this.showStartButtonArt(buttonNode, button);
   }
 
