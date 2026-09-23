@@ -53,6 +53,20 @@ export const UI_COLOR = {
    * 换色前靠暖金与白来分（见 textAccent），而暖金直接压在奶白底上会糊没。
    */
   traySlotLabelBase: new Color(150, 84, 32, 255),
+  /**
+   * 单局页顶部的玻璃底板：半透明白，把倒计时、统计行与订单卡标题从每局随机背景图上托起来。
+   * 与 glassHighlight / glassBorder 是一套（画法见 `paintGlassPanel`），改一支要连另两支一起看。
+   * alpha 取 112 是"压得住花纹、又还看得出底下是张什么图"的折中：再低背景花纹会从字缝里钻出来。
+   */
+  glassPanel: new Color(255, 255, 255, 112),
+  /**
+   * 玻璃底板的顶部高光（纵向渐变的峰值色）：叠在 glassPanel 上、由顶边向下淡到全透明，
+   * 做出"光从上面来"的受光面。只铺一层半透明底会像蒙了层雾，不像玻璃，这一层才是质感来源。
+   * 它是**峰值**：顶边与 glassPanel 叠加后约 0.62 不透明，往下递减到底边只剩 glassPanel 那一层。
+   */
+  glassHighlight: new Color(255, 255, 255, 85),
+  /** 玻璃底板的亮边：接近实白的细边，模拟玻璃边缘的反光，是这层质感里最亮的一笔 */
+  glassBorder: new Color(255, 255, 255, 220),
   /** 倒计时进度条：底槽（半透明）与剩余时间填充 */
   barTrack: new Color(255, 255, 255, 30),
   barFill: new Color(255, 206, 130, 255),
@@ -61,7 +75,8 @@ export const UI_COLOR = {
   bowlHighlightBorder: new Color(255, 206, 130, 230),
   /**
    * 开始页与结算页的整屏压暗层：原意是压暗背景、让文字读得清。
-   * 当前 alpha 0 = 关闭——质感升级后不再整屏压暗，改由各元素自带底衬托住自己（如开摊按钮自带木牌底图），背景美术能透出来。
+   * 当前 alpha 0 = 关闭——质感升级后不再整屏压暗，改由各元素自带底衬托住自己
+   * （开摊按钮自带木牌底图、单局页顶部自带 glassPanel 那块玻璃底板），背景美术能透出来。
    * 想恢复全局压暗就把 alpha 调回 175 左右（同时盖住开始页与结算页）。
    */
   backgroundDim: new Color(0, 0, 0, 0),
@@ -177,14 +192,23 @@ export function paintRoundPanel(node: Node, fill: Color, radius: number, border?
   return drawPanel(node, fill, radius, border);
 }
 
-/** 两种面板的共同实现：`radius` 为 0 画直角矩形，否则四角改圆 */
-function drawPanel(node: Node, fill: Color, radius: number, border?: Color): Graphics {
+/**
+ * 面板类绘制的公共起点：取节点的画板与几何。
+ *
+ * 尺寸取节点自身的 UITransform（没挂时按 0 算），坐标系以节点中心为原点，
+ * 所以返回的左下角是负的半宽半高。`drawPanel` 与 `paintGlassPanel` 都从这一步开始，别各自再取一遍。
+ */
+function panelGeometry(node: Node): { graphics: Graphics; width: number; height: number; left: number; bottom: number } {
   const transform = node.getComponent(UITransform);
   const width = transform ? transform.width : 0;
   const height = transform ? transform.height : 0;
   const graphics = node.getComponent(Graphics) ?? node.addComponent(Graphics);
-  const left = -width / 2;
-  const bottom = -height / 2;
+  return { graphics, width, height, left: -width / 2, bottom: -height / 2 };
+}
+
+/** 两种面板的共同实现：`radius` 为 0 画直角矩形，否则四角改圆 */
+function drawPanel(node: Node, fill: Color, radius: number, border?: Color): Graphics {
+  const { graphics, width, height, left, bottom } = panelGeometry(node);
   // 圆角与直角走两条路径：半径 0 时保持原来的 rect 绘制，外观与用法都不变
   const path = (): void => {
     if (radius > 0) graphics.roundRect(left, bottom, width, height, radius);
@@ -202,6 +226,95 @@ function drawPanel(node: Node, fill: Color, radius: number, border?: Color): Gra
     graphics.stroke();
   }
   return graphics;
+}
+
+/**
+ * 玻璃高光的纵向档数：Graphics 只有纯色填充、没有渐变，高光得靠一层层等高条带叠出来。
+ * 档数越多、相邻两档的 alpha 差越小，渐变越看不出台阶；48 档摊在顶部底板约 190 设计像素高上、每档约 4 像素，
+ * 相邻档差在 2% 不透明度以内，压在这种细节背景上已经看不出分档。顶点数多一点不影响开销（整个底板仍是一次绘制）。
+ */
+const GLASS_GRADIENT_STEPS = 48;
+
+/**
+ * 高光衰减的幂指数：1 是线性，越大越集中在顶边。
+ * 1.6 的观感是"上沿一片受光、往下渐渐收干净"；线性的话整块面板会均匀发白，反倒像脏了。
+ */
+const GLASS_HIGHLIGHT_FALLOFF = 1.6;
+
+/**
+ * 玻璃亮边的线宽：比 `drawPanel` 的描边（2）粗一档。
+ * 这支边压在低 alpha 的底上，细了会和底糊成一片，看不出反光。
+ */
+const GLASS_BORDER_WIDTH = 3;
+
+/**
+ * 在节点上画一块玻璃面板：半透明底 + 自上而下淡出的高光 + 亮白细边。
+ * 尺寸取节点自身的 UITransform（见 `panelGeometry`）；与另外两个 paint* 一样，重复调用会重画。
+ *
+ * 高光为什么用条带叠：Graphics 没有渐变填充。条带怎么贴着圆角收窄、为什么画成梯形，见循环里的注释。
+ * 一叠条带彼此不干扰、不会越描越黑，依据是引擎的 fill 只绘制"上一次 fill 之后新增的路径"
+ * （graphics-assembler 里的 `updatePathOffset`；每个绘制命令都以一个 moveTo 起头）。
+ */
+export function paintGlassPanel(node: Node, fill: Color, highlight: Color, radius: number, border: Color): Graphics {
+  const { graphics, width, height, left, bottom } = panelGeometry(node);
+  const top = height / 2;
+  const right = -left;
+  graphics.clear();
+
+  graphics.fillColor = fill;
+  graphics.roundRect(left, bottom, width, height, radius);
+  graphics.fill();
+
+  // 高光从底边的全透明涨到顶边的最亮，逐条改 alpha；这里先拿一份可改的副本，不碰调用方传进来的配色表
+  const tint = new Color(highlight.r, highlight.g, highlight.b, highlight.a);
+  const stepHeight = height / GLASS_GRADIENT_STEPS;
+  for (let i = 0; i < GLASS_GRADIENT_STEPS; i++) {
+    const y = bottom + i * stepHeight;
+    // 按条带中点算受光量：0 = 底边（全透），1 = 顶边（最亮）
+    const lit = (y + stepHeight / 2 - bottom) / height;
+    tint.a = Math.round(highlight.a * Math.pow(lit, GLASS_HIGHLIGHT_FALLOFF));
+    // 已经淡到看不见的档直接跳过，省掉顶点
+    if (tint.a < 2) continue;
+    // 条带画成梯形而不是矩形：上下边各按**自己所在高度**的圆角轮廓收窄，才严丝合缝贴住圆角——
+    // 整条取统一内缩（两端取大者）会在圆角处留下一圈锯齿台阶，完全不内缩则从顶角探出方块。
+    // 相邻两条共用一条边、端点出自同一个算式，所以既不露缝也不重叠（重叠那一像素会亮成一道横纹）
+    const insetTop = cornerInsetAt(y + stepHeight, bottom, top, radius);
+    const insetBottom = cornerInsetAt(y, bottom, top, radius);
+    graphics.fillColor = tint;
+    graphics.moveTo(left + insetBottom, y);
+    graphics.lineTo(left + insetTop, y + stepHeight);
+    graphics.lineTo(right - insetTop, y + stepHeight);
+    graphics.lineTo(right - insetBottom, y);
+    graphics.close();
+    graphics.fill();
+  }
+
+  graphics.lineWidth = GLASS_BORDER_WIDTH;
+  graphics.strokeColor = border;
+  graphics.roundRect(left, bottom, width, height, radius);
+  graphics.stroke();
+  return graphics;
+}
+
+/**
+ * 圆角轮廓在高度 `y` 处的横向内缩量，落在中间直边段上是 0。
+ * 圆的方程：距圆心落差 d 处，轮廓比直边窄 `r - √(r² - d²)`。
+ *
+ * 区间必须取**闭**的：`y` 正好落在顶边 / 底边上时落差等于半径，内缩量正是半径本身，
+ * 漏掉这两个端点会让那一条高光带按 0 内缩、从圆角的顶角探出方块（曾经就是这么错的）。
+ *
+ * 只服务 `paintGlassPanel` 的高光条带，别处的矩形/圆角绘制不需要它。
+ */
+function cornerInsetAt(y: number, bottom: number, top: number, radius: number): number {
+  if (radius <= 0) return 0;
+
+  const fromBottom = bottom + radius - y;
+  if (fromBottom >= 0 && fromBottom <= radius) return radius - Math.sqrt(radius * radius - fromBottom * fromBottom);
+
+  const fromTop = y - (top - radius);
+  if (fromTop >= 0 && fromTop <= radius) return radius - Math.sqrt(radius * radius - fromTop * fromTop);
+
+  return 0;
 }
 
 /**
@@ -235,7 +348,8 @@ export interface OutlinedText {
  * 而不是"再叠一层偏移文字"——叠两层会被看成两行字重在一起（发虚、易晕），
  * 字形描边是沿轮廓外扩，读起来仍是一个字。开始页的"最高分"就是这一套，单局页沿用同一支描边色。
  *
- * 单局页的文字压在每局随机抽出的美术图上、自己没有底板，可读性全交给这层描边。
+ * 单局页的文字大多压在每局随机抽出的美术图上、自己没有底板，可读性主要交给这层描边；
+ * 顶部那几条另有玻璃底板垫着（见 `ui/HudView.ts` 的顶部底板），描边在那里的作用是压住底板自身的亮度。
  * 节点初始落在 (0, 0)，摆哪儿交给调用方（浮字按锚点算，静态文字给固定 y）。
  */
 export function createOutlinedText(

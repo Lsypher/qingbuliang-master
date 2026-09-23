@@ -1,21 +1,21 @@
 import { _decorator, Node, Tween, Vec3, tween } from 'cc';
 import { ROUND_DURATION_MS } from '../config/balance';
-import { COUNTDOWN_Y } from '../config/layout';
+import { COUNTDOWN_Y, SCREEN_HEIGHT } from '../config/layout';
 import { STRINGS } from '../config/strings';
 import type { RenderPayload } from '../game/bus';
 import { BusComponent } from '../game/busComponent';
 import { SignatureGuard } from './redrawGuard';
 import { hudStatsSignature } from './renderSignatures';
 import type { OutlinedText } from './uiFactory';
-import { createOutlinedText, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import { createOutlinedText, createUiNode, paintGlassPanel, paintPanel, UI_COLOR, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
 
 /**
  * 顶部信息条的版面（设计像素，以单局页中心为原点）：倒计时数字在上、进度条夹中间、统计行在下。
  * 三个 y 彼此间距就是按这些值定的，改一个要连相邻那个一起看。
- * 字号按"隔着一层美术也一眼扫到"定：倒计时最大、统计行小一号；这一条没有底板（文字与进度条都压在每局随机背景图上），
- * 所以字号只往上调、不再往下压。
+ * 字号按"隔着一层美术也一眼扫到"定：倒计时最大、统计行小一号；底板（见下面那组 GLASS_*）只负责压住背景花纹、
+ * 不是把字号往小压的理由，所以字号只往上调、不再往下调。
  * `COUNTDOWN_Y` 不在这里：错放飘字也要读它，按 config/layout.ts 的约定把它提到了那边。
  */
 const COUNTDOWN_FONT = 34;
@@ -27,6 +27,30 @@ const BAR_WIDTH = 560;
 const BAR_HEIGHT = 14;
 /** 进度条重绘阈值：比例变化小于此值就不动（560 像素宽下约 1 像素，省掉绝大多数帧的重绘） */
 const BAR_REDRAW_EPSILON = 0.002;
+
+/**
+ * 顶部玻璃底板的版面（设计像素，以单局页中心为原点）：上边在屏幕顶下方留一道缝、下边伸到订单卡标题下面，
+ * 把倒计时、进度条、统计行与"顾客要这一碗"一起托住。
+ *
+ * 上边不贴屏幕顶（`GLASS_TOP_GAP`）：四角都露出来、还和屏幕边留出缝，才像一张浮在背景上的玻璃卡片
+ * （贴顶会变成"顶部一条横幅"）。这道缝比左右留边小一档——上方紧挨着倒计时数字，留多了会把内容往上挤。
+ *
+ * 下边（`GLASS_BOTTOM_Y`）与 OrderCard 的标题行是**软绑定**：按"标题底边再往下让一点"取，
+ * 标题的纵坐标与字号定义在 ui/OrderCard.ts —— **那边把订单卡整体上下挪了，就要回来改这里**，
+ * 两边没有代码上的关联，只能靠这条注释对上。
+ */
+const GLASS_TOP_GAP = 12;
+const GLASS_TOP_Y = SCREEN_HEIGHT / 2 - GLASS_TOP_GAP;
+const GLASS_BOTTOM_Y = 440;
+/**
+ * 底板左右各留的边（设计像素）：留够宽才像一张浮在背景上的卡片，铺满屏宽就成了一条横幅。
+ * 这是**常规屏的上限**：可见宽度窄到给不出这么多留边时，`buildGlassBackdrop` 会让留边退到
+ * "刚好包住里面的进度条"为止（见那里），不会为了让留边达标而把进度条顶出轮廓。
+ */
+const GLASS_MARGIN_X = 24;
+/** 底板的圆角半径（设计像素）：与下沿露在屏内的那段长度相称，再放大就收成胶囊形了 */
+const GLASS_RADIUS = 28;
+
 /** 倒计时告警脉冲：放大到 1.15 再回落为一轮，半周期（秒） */
 const PULSE_HALF_PERIOD = 0.35;
 const PULSE_SCALE = 1.15;
@@ -41,6 +65,7 @@ const PULSE_SCALE = 1.15;
  * 这里只是把它镜像成"亮着 / 灭着"两种表现——所以既不会重复触发，新一局也自然复位。
  *
  * 两行文字都带字形描边（来由与做法见 uiFactory.createOutlinedText）。
+ * 整条另垫着一块玻璃底板（见 buildGlassBackdrop）：每局背景图随机换，遇到花纹密的那几张，光靠描边托不住。
  */
 @ccclass('HudView')
 export class HudView extends BusComponent {
@@ -60,9 +85,32 @@ export class HudView extends BusComponent {
   private pulseTween: Tween<Node> | null = null;
 
   protected onViewLoad(): void {
+    this.buildGlassBackdrop();
     this.buildCountdown();
     this.statsLine = createOutlinedText(this.node, 'HudLine', '', STATS_FONT, UI_COLOR.textBody, UI_COLOR.textOutline);
     this.statsLine.node.setPosition(0, STATS_Y, 0);
+  }
+
+  /**
+   * 顶部玻璃底板：垫在倒计时、统计行与订单卡标题之下，压住每局随机背景图上的花纹。
+   * 画法（半透明底 + 顶部高光 + 亮边）见 `uiFactory.paintGlassPanel`。
+   *
+   * 建完要提到第 0 个子节点：底板属于背景那一层，而运行时建的节点默认追加在场景里摆好的
+   * 三个区域（订单区 / 碗区 / 配料盘）之后，不往前挪就会把订单卡的标题压成半透明的。
+   */
+  private buildGlassBackdrop(): void {
+    // 留边取 GLASS_MARGIN_X 与"可见宽度还愿意给出多少"里的较小者：比 9:16 更瘦的屏给不出 24，
+    // 就一路退到刚好包住那条定宽 560 的进度条为止——宁可留边变小，也不让进度条顶出底板轮廓
+    const margin = Math.max(0, Math.min(GLASS_MARGIN_X, (visibleWidth() - BAR_WIDTH) / 2));
+    const panel = createUiNode(
+      this.node,
+      'HudGlassPanel',
+      visibleWidth() - margin * 2,
+      GLASS_TOP_Y - GLASS_BOTTOM_Y,
+      (GLASS_TOP_Y + GLASS_BOTTOM_Y) / 2,
+    );
+    paintGlassPanel(panel, UI_COLOR.glassPanel, UI_COLOR.glassHighlight, GLASS_RADIUS, UI_COLOR.glassBorder);
+    panel.setSiblingIndex(0);
   }
 
   /** 停脉冲：组件销毁前基类会调到这里（Render 的退订由基类做） */
