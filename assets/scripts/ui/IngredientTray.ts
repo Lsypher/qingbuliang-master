@@ -5,9 +5,15 @@ import { createDragGesture } from './dragGesture';
 import { createIngredientGhost } from './ingredientGhost';
 import { createIngredientIcon } from './ingredientIcon';
 import { COLUMN_COUNT, ROW_COUNT, ROW_SPACING, SLOT_HEIGHT, trayLayout } from './trayLayout';
-import { createLabel, createUiNode, paintPanel, UI_COLOR, visibleWidth } from './uiFactory';
+import { createLabel, createUiNode, paintRoundPanel, UI_COLOR, visibleWidth } from './uiFactory';
 
 const { ccclass } = _decorator;
+
+/**
+ * 格子圆角半径（设计像素）：取格子高度的两成上下，四角圆润、没有尖角，与整屏"轻松友好"的调性一致。
+ * 再大就会把 160×96 的格子收成胶囊形，图标与中文名的横向余量也跟着变窄。
+ */
+const SLOT_RADIUS = 20;
 
 /**
  * 配料盘：把 12 格配料摆出来，负责"玩家用哪种手势选中了哪一格"。
@@ -54,14 +60,15 @@ export class IngredientTray extends Component {
       const y = ((ROW_COUNT - 1) / 2 - row) * ROW_SPACING;
 
       const slot = createUiNode(this.node, `Slot_${ingredient.id}`, slotWidth, SLOT_HEIGHT, y, x);
-      paintPanel(slot, UI_COLOR.panel, UI_COLOR.panelBorder);
+      // 奶白圆角格子：不描边——浅底压在随机背景图上，一圈描边反而会把"柔和"割出硬边（见 UI_COLOR.traySlot）
+      paintRoundPanel(slot, UI_COLOR.traySlot, SLOT_RADIUS);
 
       // 图标在上、中文短标签在下：图标是主识别通道，标签兜底（含撞脸项区分）；
       // 图标位置略上移，给下方标签留出格子内的高度，两者不重叠
       const slotIcon = createIngredientIcon(slot, ingredient.id, 52, 'Icon');
       slotIcon.setPosition(0, 16, 0);
-      // 汤底与小料用不同字色区分，避免一眼看混两类
-      const labelColor = ingredient.category === 'base' ? UI_COLOR.textAccent : UI_COLOR.textPrimary;
+      // 汤底与小料用不同字色区分，避免一眼看混两类；奶白底上改用两支深色（原来那对浅色会糊没）
+      const labelColor = ingredient.category === 'base' ? UI_COLOR.traySlotLabelBase : UI_COLOR.traySlotLabel;
       createLabel(slot, 'Name', ingredient.name, -28, 18, labelColor, slotWidth - 8);
 
       const ingredientId = ingredient.id;
