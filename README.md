@@ -116,5 +116,7 @@ tests/                         不依赖引擎的纯逻辑单元测试（core/ �
 - `docs/adr/0007-drag-gesture-state-machine.md`：点按与拖动的判定收进不 import 引擎的手势状态机，配料盘不再挂 `Button`
 - `docs/adr/0008-ingredient-ghost-and-icon-ownership.md`：「一份配料」的视觉与图标资源各只有一个所有者
 - `docs/adr/0009-misdrop-float-anchor-by-layout.md`：错放飘字改用版面契约定位，不再跨视图找节点
+- `docs/adr/0010-misdrop-center-popup.md`：错放的"-3 秒"再加一张中央图片弹窗，位置落在碗内上部空档
 - `docs/adr/0011-start-button-art-carries-its-own-text.md`：开摊按钮的字烤进底图（按钮图因此不走九宫格、尺寸取原图 240×86、不放大）
+- `docs/adr/0012-ghost-panel-matches-tray.md`：配料幽灵的底板改用配料盘格子那套色，文字与跟手描边随之换色
 - `docs/art/ui-prompts.md`：开始页界面出图需求（最高分奖杯；标题艺术字与旧木牌按钮底图两段均已作废，只作历史记录）

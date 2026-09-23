@@ -186,8 +186,8 @@ export class IngredientTray extends Component {
     return createIngredientGhost(parent, {
       ingredientId,
       name: 'DragGhost',
-      // 描边用强调色：跟配料盘里的静态格子区分开，一眼看出"手里拿着东西"
-      border: UI_COLOR.textAccent,
+      // 描边是幽灵与盘里静态格子的区分手段（底板已同色）；这支是近白底上唯一压得住的深色
+      border: UI_COLOR.traySlotLabelBase,
       at: { x: local.x, y: local.y },
     });
   }

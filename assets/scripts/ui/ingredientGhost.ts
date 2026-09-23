@@ -1,7 +1,7 @@
 import { Color, Node } from 'cc';
 import { ingredientName } from '../config/ingredients';
 import { createIngredientIcon } from './ingredientIcon';
-import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
+import { createLabel, createUiNode, paintRoundPanel, UI_COLOR } from './uiFactory';
 
 /**
  * 配料幽灵（Ingredient Ghost）：玩家"手里那一份配料"的样子——小面板 + 配料图标 + 中文名。
@@ -10,8 +10,12 @@ import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
  * 与错放时的弹回幽灵（见 ui/MisdropFeedback.ts）——后者要让人一眼认出"飞回去的就是刚才那一份"，
  * 两个幽灵长得不一样就等于把这个线索丢了。
  *
+ * 底板与文字取配料盘格子那一套（见 UI_COLOR.traySlot / traySlotLabel）：手里的与盘里的因此同族，
+ * 幽灵靠"小一号 + 跟着手指走 + 一圈描边"与静态格子分开。这么定的来由与代价见
+ * docs/adr/0012-ghost-panel-matches-tray.md。
+ *
  * 调用方只决定**在哪、叫什么、描边用哪支色**：描边色是唯一有意保留的差异——
- * 跟手用强调色（"手里拿着东西"），弹回用错放红（"这一份放错了"）。
+ * 跟手用深暖棕、弹回用错放红（两支色及其理由见 UI_COLOR.traySlotLabelBase）。
  */
 
 /**
@@ -20,6 +24,14 @@ import { createLabel, createUiNode, paintPanel, UI_COLOR } from './uiFactory';
  */
 const GHOST_WIDTH = 120;
 const GHOST_HEIGHT = 64;
+
+/**
+ * 幽灵的圆角半径（设计像素）：取幽灵高度的两成（64 × 0.2 ≈ 12.8，取整 13），
+ * 与配料盘格子共用同一个比例而不是同一支常量——两边高度不同（96 对 64），
+ * 统一半径会有一边显得过方或过圆。那边的半径见 ui/IngredientTray.ts 的 SLOT_RADIUS；
+ * 改 GHOST_HEIGHT 时就要回头核这个数。
+ */
+const GHOST_RADIUS = 13;
 
 /**
  * 图标与名称在幽灵里的位置（设计像素，以幽灵中心为原点）：图标在上、名称在下。
@@ -45,20 +57,21 @@ export function createIngredientGhost(
     ingredientId: string;
     /** 节点名：层级面板里靠它区分是跟手幽灵还是弹回幽灵 */
     name: string;
-    /** 描边色：跟手传 `UI_COLOR.textAccent`，弹回传 `UI_COLOR.misdropText` */
+    /** 描边色：跟手传 `UI_COLOR.traySlotLabelBase`，弹回传 `UI_COLOR.misdropText` */
     border: Color;
     /** 落位（父节点的局部坐标） */
     at: { x: number; y: number };
   },
 ): Node {
   const ghost = createUiNode(parent, options.name, GHOST_WIDTH, GHOST_HEIGHT);
-  paintPanel(ghost, UI_COLOR.panel, options.border);
+  // 圆角面板：与配料盘格子同底同圆角语言（方格子的浅底压在随机背景上会割出硬边，见 ui/IngredientTray.ts）
+  paintRoundPanel(ghost, UI_COLOR.traySlot, GHOST_RADIUS, options.border);
 
   const icon = createIngredientIcon(ghost, options.ingredientId, GHOST_ICON_SIZE, 'Icon');
   icon.setPosition(0, GHOST_ICON_Y, 0);
   // id 非法时 ingredientName 原样返回 id，显示一个短英文名比显示空白强（见 config/ingredients.ts）
   const label = ingredientName(options.ingredientId);
-  createLabel(ghost, 'Name', label, GHOST_LABEL_Y, GHOST_LABEL_FONT, UI_COLOR.textPrimary, GHOST_LABEL_WIDTH);
+  createLabel(ghost, 'Name', label, GHOST_LABEL_Y, GHOST_LABEL_FONT, UI_COLOR.traySlotLabel, GHOST_LABEL_WIDTH);
 
   ghost.setPosition(options.at.x, options.at.y, 0);
   return ghost;
